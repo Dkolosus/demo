@@ -119,10 +119,10 @@ network --bootproto={{ network.bootproto  }} --ip={{ network.ip  }} --netmask={{
 rootpw --lock
 
 # And ssh key
-sshkey --username=root "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDAYx5O3aPPErlgJSzo7TuelG14QXLuYsiGILxZKdf8keJggPz1PGcXfuy+asqIDgdLoMJQLgOgVDOEQqAAeFLFKn2G8LQJFmMiE8WbaCAiFnMEXRn4MFpz33U03tTXMrZL4IuuQSVgk++koGSdDwWa4igpwg91VWDg+1TtpnUiSmtmGsX+HosM0oE+buxPapYZZVJcDrEjJrnjfhIpE3GoJWBtNLCvrFiHGMMbX4J/1hwMDDkiE/i8yc3/7HHnc2ZeVfQtRSbmWQ3tdHO4UMqSI6mcnGW5bJXcyT1jPSiiyzsN27QhY7QVoh72jkA5hVoZNoQpbfd1eTqVzK1sus5D root@ocloud"
+sshkey --username=
 
 # User
-user --groups=wheel --name=support --password=elephant
+user --groups=wheel --name=support --password=
 
 %post
 
