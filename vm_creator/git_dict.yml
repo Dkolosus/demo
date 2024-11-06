@@ -1,0 +1,12 @@
+os: 'u2204'
+location: false
+infra: true
+efi: false
+lvm: true
+swap: true
+vm_name: 'test-kick'
+vm_cpu: 4
+vm_memory: 4096
+hd_size: 30
+hd_part: {/: '25',home: '4'}
+network: {bootproto: 'static', ip: '192.168.126.49', netmask: '255.255.128.0', net_pref: '17', gateway: '192.168.0.1', nameserver: '10.10.200.53,10.10.200.153', hostname: 'test-kick'}

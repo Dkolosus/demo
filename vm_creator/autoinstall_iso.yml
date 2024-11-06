@@ -1,0 +1,96 @@
+- name: Prepare Boot ISO 
+  hosts: local
+  gather_facts: false
+  vars:
+    git_dict_file: "/opt/nfs/ansible/git_dict.yml"
+    kickstart_file: "/opt/nfs/ansible/template/kickstart_template.yml"
+    dict_network: []
+    dict_part: {}
+    dict_part_keys: []
+    iso_path: "/opt/nfs/iso_to_upload"
+  pre_tasks:
+    - include_vars: "{{ git_dict_file  }}"
+  tasks:
+#    - name: Debug file
+#      ansible.builtin.debug:
+#        msg: "{{ hd_part }}"
+    
+    - name: Set var volid
+      set_fact:
+        volid: 'OL-9-4-0-BaseOS-x86_64'
+      when: os == 'ol9u4'
+
+    - name: Set var volid
+      set_fact:
+        volid: 'OL-8-9-0-BaseOS-x86_64'
+      when: os == 'ol8u9'
+
+    - name: Set var volid
+      set_fact:
+        volid: '"Ubuntu-Server 24.04 LTS amd64"'
+      when: os == 'u2404'
+
+    - name: Set var volid
+      set_fact:
+        volid: '"Ubuntu-Server 22.04.4 LTS amd64"'
+      when: os == 'u2204'
+
+    - name: Set var build_iso_path
+      set_fact:
+        iso_path: '/opt/backup_iso'
+      when: location == 'ovirt'
+
+    - name: Create Dict Network
+      set_fact:
+        dict_network: "{{ dict_network |default([]) + [ network ]  }}"
+
+    - name: Create dict HDD
+      set_fact:
+        dict_part: "{{hd_part}}"
+
+    - name: Create ks.cfg Rhel
+      template:
+        src=/opt/nfs/ansible/template/kickstart.j2
+        dest=/opt/nfs/ex_iso/{{ os  }}/ks.cfg
+      register: template_kickstart
+      when: infra == false and os != 'u2204' and os != 'u2404'
+    
+    - name: Create Infra ks.cfg Rhel
+      template:
+        src=/opt/nfs/ansible/template/kickstart_infra.j2
+        dest=/opt/nfs/ex_iso/{{ os  }}/ks.cfg
+      register: template_kickstart
+      when: infra == true and os != 'u2204' and os != 'u2404'
+
+    - name: Create autoinstall Ubuntu
+      template:
+        src=/opt/nfs/ansible/template/ubuntu.j2
+        dest=/opt/nfs/ex_iso/{{ os  }}/autoinstall.yaml
+      register: template_autoinstall
+      when: os == 'u2204' or os == 'u2404'
+
+    - name: Build the customized Rhel ISO image
+      command: >
+        xorrisofs -r -J -joliet-long -iso-level 3 
+          -graft-points -o {{ iso_path  }}/{{ os }}.iso 
+          -volid {{ volid }}  -sysid 'LINUX'  
+          -appid 'GENISOIMAGE (C) 2024 PROTEI TEAM' 
+          -b isolinux/isolinux.bin -c isolinux/boot.cat 
+          -no-emul-boot -boot-load-size 4 -boot-info-table 
+          -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin --mbr-force-bootable 
+          -eltorito-alt-boot  -no-emul-boot -isohybrid-gpt-basdat /opt/nfs/ex_iso/{{ os  }} 
+      register: create_iso_log
+      when: os != 'u2204' and os != 'u2404'
+
+    - name: Build the customized Ubuntu ISO image
+      command: >
+        xorrisofs -r -J -joliet-long -iso-level 3 
+          -graft-points -o {{ iso_path  }}/{{ os }}.iso 
+          -volid {{ volid }}  -sysid 'LINUX'  
+          -appid 'GENISOIMAGE (C) 2024 PROTEI TEAM' 
+          -c 'boot.catalog' -b 'boot/grub/i386-pc/eltorito.img' 
+          -no-emul-boot -boot-load-size 4 -boot-info-table 
+          -isohybrid-mbr /usr/lib/ISOLINUX/isohdpfx.bin --mbr-force-bootable 
+          -eltorito-alt-boot  -no-emul-boot -isohybrid-gpt-basdat /opt/nfs/ex_iso/{{ os  }} 
+      register: create_iso_log
+      when: os == 'u2404'  or os == 'u2204' 

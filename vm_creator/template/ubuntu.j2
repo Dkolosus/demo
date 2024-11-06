@@ -1,0 +1,245 @@
+#cloud-config
+version: 1
+
+source:
+  id: ubuntu-server-minimal
+
+locale: en_US.UTF-8
+keyboard:
+  layout: us
+timezone: Europe/Moscow
+apt:
+  fallback: offline-install
+  package_update: false
+  package_upgrade: false
+  geoip: false
+  disable_suites: [backports,security]
+
+
+network:
+  version: 2
+  ethernets:
+    ens18:
+      dhcp4: false
+      addresses:
+        - {{ network.ip  }}/{{ network.net_pref }}
+      nameservers:
+        addresses: [{{ network.nameserver }}]
+      routes:
+        - to: default
+          via: {{ network.gateway }}
+identity:
+  username: support
+  hostname: {{ network.hostname }}
+  password: '$y$j9T$TjIRLNGn7LHXwkObC0jXf/$DIJJuXuLglHEqeDrKoGBGx8/vFKl9LKxe0n4v73E47C'
+
+ssh:
+  install-server: true
+  allow-pw: true
+  authorized-keys: []
+
+#  packages:
+#    - qemu-guest-agent
+
+shutdown: reboot
+# Перевод в Миб  размера hdd
+{% set hd_s  = namespace(value=(hd * 1000)) %}
+storage:
+  config:
+    - type: disk
+      id: disk-sda
+      ptable: gpt
+      path: /dev/sda
+      wipe: superblock-recursive
+      preserve: false
+      grub_device: true
+
+{% if efi  is false %}
+# BIOS boot partition
+    - id: bios-part
+      size: 1M
+      flag: bios_grub
+      number: 1
+      preserve: false
+      type: partition
+      partition_type: EF02
+      device: disk-sda
+      wipe: superblock
+{% set hd_s.value  = (hd_s.value - 1) %}
+{% endif %}
+
+{% if efi  is true %}
+    - id: efipart
+      type: partition
+      device: disk-vda
+      offset: 1048576
+      size: 600M
+      flag: boot
+      number: 1
+      grub_device: true
+
+    - id: efipart_fs
+      type: format
+      volume: efipart
+      fstype: fat32
+
+    - id: efipart-mount
+      type: mount
+      device: efipart_fs
+      path: /boot/efi
+{% set hd_s.value  = (hd_s.value - 600) %}
+{% endif %}
+
+    - id: bootpart
+      type: partition
+      device: disk-sda
+      number: 2
+      size: 1G
+
+{% set hd_s.value  = (hd_s.value - 1024 -1024) %}
+
+    - id: bootpart_fs
+      type: format 
+      volume: bootpart
+      fstype: ext4
+
+    - id: bootpart-mount
+      type: mount
+      device: bootpart_fs
+      path: /boot
+
+{% if lvm  is true %}
+{% set lv_n = namespace(value=0) %}
+    - id: pvpart
+      type: partition
+      device: disk-sda
+      size: -1
+
+    - id: vg0
+      type: lvm_volgroup
+      name: vg0
+      devices:
+        - pvpart
+
+{% for key, value  in dict_part.items() %}
+{% if key  == '/' %}
+{% if (value|int * 1024) > hd_s.value %}
+    - id: root_lv
+      type: lvm_partition
+      name: root_lv
+      volgroup: vg0
+      size: {{ hd_s.value // 512 * 512 }}M
+
+    - id: root_lv_fs
+      type: format
+      volume: root_lv
+      fstype: ext4
+
+    - id: root_lv_mount
+      type: mount
+      device: root_lv_fs
+      path: /
+{% set hd_s.value  = (hd_s.value - hd_s.value) %}
+{% endif %}
+{% if (value|int * 1024) < hd_s.value %}
+    - id: root_lv
+      type: lvm_partition
+      name: root_lv
+      volgroup: vg0
+      size: {{ value|int * 1024  }}M
+
+    - id: root_lv_fs
+      type: format  
+      volume: root_lv
+      fstype: ext4
+
+    - id: root_lv_mount
+      type: mount 
+      device: root_lv_fs
+      path: /
+{% set hd_s.value  = (hd_s.value - (value|int * 1024)) %}
+{% endif %}
+{% endif %}
+{% if key  != '/' %}
+{% if (value|int * 1024) > hd_s.value %}
+    - id: lv_{{ lv_n.value  }}
+      type: lvm_partition
+      name: lv_{{ lv_n.value  }}
+      volgroup: vg0
+      size: {{ hd_s.value // 512 * 512 }}M
+
+    - id: lv_fs_{{ lv_n.value  }}
+      type: format
+      volume: lv_{{ lv_n.value  }}
+      fstype: ext4
+
+    - id: lv_mount_{{ lv_n.value  }}
+      type: mount
+      device: lv_fs_{{ lv_n.value  }}
+      path: {{ key }}
+{% set hd_s.value  = (hd_s.value - hd_s.value) %}
+{% endif %}
+{% if (value|int * 1024) < hd_s.value %}
+    - id: lv_{{ lv_n.value  }}
+      type: lvm_partition 
+      name: lv_{{ lv_n.value  }}
+      volgroup: vg0
+      size: {{ value|int * 1024 }}M
+
+    - id: lv_fs_{{ lv_n.value  }}
+      type: format   
+      volume: lv_{{ lv_n.value  }}
+      fstype: ext4
+
+    - id: lv_mount_{{ lv_n.value  }}
+      type: mount
+      device: lv_fs_{{ lv_n.value  }}
+      path: key
+{% set hd_s.value  = (hd_s.value - (value|int * 1024)) %}
+{% endif %}
+{% endif %}
+{% set lv_n.value = (lv_n.value + 1) %}
+{% endfor %}
+{% endif %}
+
+{% if lvm  is false %}
+{% set part_n = namespace(value=0) %}
+{% for key, value  in dict_part.items() %}
+{% if (value|int * 1024) > hd_s.value %}
+    - id: part_{{part_n.value}}
+      type: partition
+      device: disk-sda
+      size: {{ hd_s.value // 512 * 512  }}M
+
+{% set hd_s.value  = (hd_s.value - hd_s.value) %}
+
+    - id: part_f_{{part_n.value}}
+      type: format
+      volume: part_{{part_n.value}}
+      fstype: ext4
+
+    - id: part_m_{{part_n.value}}
+      type: mount
+      device: part_f_{{part_n.value}}
+      path: {{ key  }}
+{% endif %}
+{% if (value|int * 1024) < hd_s.value %}
+    - id: part_{{part_n.value}}
+      type: partition
+      device: disk-sda
+      size: {{ value|int * 1024  }}M
+{% set hd_s.value  = (hd_s.value - (value|int * 1024)) %}
+
+    - id: part_f_{{part_n.value}}
+      type: format    
+      volume: part_{{part_n.value}}
+      fstype: ext4
+
+    - id: part_m_{{part_n.value}}
+      type: mount 
+      device: part_f_{{part_n.value}}
+      path: {{ key  }}
+{% endif %}
+{% set part_n.value = (part_n.value + 1) %}
+{% endfor %}
+{% endif %}
