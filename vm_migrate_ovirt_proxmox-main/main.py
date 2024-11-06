@@ -19,7 +19,7 @@ def read_file_string(path):
 
 
 def get_vm_disk(disk_id, path_image):
-    process = subprocess.Popen(['ansible-playbook', '-i', '/home/dens/ansible/host', '/home/dens/ansible/get_disk_ovirt.yml', '-e', f'disk_id={disk_id} path_image={path_image}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process = subprocess.Popen(['ansible-playbook', '-i', 'host', 'get_disk_ovirt.yml', '-e', f'disk_id={disk_id} path_image={path_image}'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = process.communicate()
     return stdout
 
@@ -58,7 +58,7 @@ def exec_ssh_cmd(client, cmd):
 
 
 def do_job():
-    temp_dict = open_fucking_file('/home/dens/ansible/dict_vm_to_migrate.txt')
+    temp_dict = open_fucking_file('dict_vm_to_migrate.txt')
     ssh_client = get_ssh_client('10.10.200.101', '22', 'root', 'VTt7tPbZEu')
     for vm in temp_dict:
         print(f"Миграция VM: {vm['name']}")
@@ -76,7 +76,7 @@ def do_job():
             str_err_stdout = dell_space_str(err_stdout)
             err_list = get_list_stdout(str_err_stdout)
             check_list_error(err_list)
-            temp_disk_dict = open_fucking_file('/home/dens/ansible/roles/ovirt_to_prox/files/temp_disk_dict.txt')
+            temp_disk_dict = open_fucking_file('temp_disk_dict.txt')
             print(f"{temp_disk_dict['name']}.{temp_disk_dict['format']}")
             pvesh_str_disk = f"pvesh create /nodes/proxmox-01/qemu/{vm['vm_id']}/config --scsi{iscsi_id} data:0," \
                              f"iothread=1,import-from=/mnt/pve/temp-nfs/images/{temp_disk_dict['name']}.{temp_disk_dict['format']}"
