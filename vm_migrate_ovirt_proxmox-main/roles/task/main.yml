@@ -1,0 +1,190 @@
+- name: Obtain SSO token with using username/password credentials
+  ovirt.ovirt.ovirt_auth:
+    url: https://ovirt.protei.ru/ovirt-engine/api
+    username: "{{ api_user }}"
+    password: "{{ api_password }}"
+    
+- name: Get info
+  ovirt.ovirt.ovirt_vm_info:
+    auth: "{{ ovirt_auth }}"
+    pattern: cluster=Admins
+    follow: ['disk_attachments', 'nics']
+  register: result_vm
+
+- name: Create_your_local_file
+  ansible.builtin.file:
+    path: /home/dens/ansible/roles/ovirt_to_prox/files/result_vm_res.txt
+  delegate_to: localhost
+
+- name: Print_to_file
+  ansible.builtin.copy:
+    content: "{{ result_vm.ovirt_vms }}"
+    dest: /home/dens/ansible/roles/ovirt_to_prox/files/result_vm_res.txt
+  delegate_to: localhost
+
+
+- name: Filter_vm_options
+  set_fact:
+    dict_vm_res: '{{ dict_vm_res | default([]) + [{"name": item.name, "memory": item.memory, "cores":  item.cpu.topology.cores, "sockets": item.cpu.topology.sockets, "id": item.id}] }}'
+  loop: "{{ result_vm.ovirt_vms|flatten(levels=1) }}"
+
+#- name: Debug_nics
+#  ansible.builtin.debug:
+#    msg: "{{ dict_vm_res }}"
+
+- name: Create_your_local_file
+  ansible.builtin.file:
+    path: /home/dens/ansible/roles/ovirt_to_prox/files/dict_vm_res.txt
+  delegate_to: localhost
+
+- name: Print_to_file
+  ansible.builtin.copy:
+    content: "{{dict_vm_res}}"
+    dest: /home/dens/ansible/roles/ovirt_to_prox/files/dict_vm_res.txt
+  delegate_to: localhost
+
+- name: Touch_Array_nics
+  set_fact:
+    dict_nics: []
+
+- name: Get_nics
+  ovirt.ovirt.ovirt_nic_info:
+    auth: "{{ ovirt_auth }}"
+    vm: "{{ item.name }}"
+  register: result_nics
+  loop: "{{ dict_vm_res | flatten(levels=1) }}"
+
+- name: Filter_nics
+  set_fact:
+    nic_res: '{{ nic_res | default([]) + item.ovirt_nics }}'
+  loop: "{{ result_nics.results|flatten(levels=1) }}"
+
+#- name: Debug_Filter_nics
+#  ansible.builtin.debug:
+#    msg: "{{ nic_res }}"
+
+
+- name: Create_your_local_file
+  ansible.builtin.file:
+    path: /home/dens/ansible/roles/ovirt_to_prox/files/nic_vm_res.txt
+  delegate_to: localhost
+
+- name: Print_to_file       
+  ansible.builtin.copy: 
+    content: "{{nic_res}}"
+    dest: /home/dens/ansible/roles/ovirt_to_prox/files/nic_vm_res.txt
+  delegate_to: localhost
+
+
+#- name: Combine_dict_vm_res_nics
+#  set_fact:
+#    comb_dict_vm: "{{ comb_dict_vm |default([]) + [ (item[0] | ansible.builtin.combine({ item[1].name:item[1].vnic_profile.id })) ] }}"
+#  with_items:
+#  - "{{ dict_vm_res }}"
+#  - "{{ nic_res }}"
+#  when: item[0].id == item[1].vm.id
+
+#- name: Debug_dist_vm_res
+#  ansible.builtin.debug:
+#    msg: "{{ comb_dict_vm }}" 
+
+#- name: Combine_dict_vm_res_nics
+#  set_fact:
+#    comb2nics_dict_vm: "{{ comb2nics_dict_vm |default([]) + [ (item[0] | ansible.builtin.combine(item[1])) ] }}"
+#  with_nested:
+#  - "{{ comb_dict_vm }}"
+#  - "{{ comb_dict_vm }}"
+#  when: item[0].id == item[1].id
+
+#- name: Debug_comb2nics_dict_vm
+#  ansible.builtin.debug:
+#    msg: "{{ comb2nics_dict_vm }}"
+
+- name: Get_vnic_profiles
+  ovirt.ovirt.ovirt_vnic_profile_info:
+    auth: "{{ ovirt_auth }}"
+  register: result_vnic_profile
+
+- name: Create_your_local_file
+  ansible.builtin.file:
+    path: /home/dens/ansible/roles/ovirt_to_prox/files/vnic_profile_res.txt
+  delegate_to: localhost
+
+- name: Print_to_file
+  ansible.builtin.copy:
+    content: "{{ result_vnic_profile.ovirt_vnic_profiles }}"
+    dest: /home/dens/ansible/roles/ovirt_to_prox/files/vnic_profile_res.txt
+  delegate_to: localhost
+
+
+#- name: Debug_result_vnic_profile
+#  ansible.builtin.debug:
+#    msg: "{{ result_vnic_profile  }}"
+
+#- name: Combine_nic_id_dict
+#  set_fact:
+#    nic1_id_dict: "{{ nic1_id_dict |default([]) + [ (item[0] | ansible.builtin.combine({'nic_network_id': [item[1].id]})) ] }}"
+#  with_nested:
+#  - "{{ comb2nics_dict_vm }}"
+#  - "{{ result_vnic_profile.ovirt_vnic_profiles  }}"
+#  when: ((item[0].nic1 is defined ) and ( item[0].nic1 == item[1].id )) or (( item[0].nic2 is defined ) and ( item[0].nic2 == item[1].id ))
+
+#- name: Combine_comb2nics_dict_vm_vnic2_id_nic2_id
+#  set_fact:
+#    nic2_id_dict: "{{ nic2_id_dict |default([]) + [ (item[0] | ansible.builtin.combine({'nic2_network_id': item[1].id})) ] }}"
+#  with_nested:
+#  - "{{ nic1_id_dict }}"
+#  - "{{ result_vnic_profile.ovirt_vnic_profiles  }}"
+#  when: (item[0].nic2 is defined ) and (item[0].nic2 == item[1].id)
+
+#- name: Debug_nic1_id_dict
+#  ansible.builtin.debug:
+#    msg: "{{ nic1_id_dict  }}"
+
+
+#- name: Combine_nics
+#  set_fact:
+#    all_nics_dict: "{{ all_nics_dict |default([]) + [ (item[0] | ansible.builtin.combine(item[1])) ] }}"
+#  with_nested:
+#  - "{{ nic1_id_dict  }}"
+#  - "{{ nic2_id_dict }}"
+#  when: item[0].id == item[1].id
+
+#- name: Debug_all_nics
+#  ansible.builtin.debug:
+#    msg: "{{ all_nics_dict  }}"
+
+- name: Get_network_info
+  ovirt.ovirt.ovirt_network_info:
+    auth: "{{ ovirt_auth }}"
+  register: result_network
+
+
+- name: Create_your_local_file
+  ansible.builtin.file:
+    path: /home/dens/ansible/roles/ovirt_to_prox/files/network_res.txt
+  delegate_to: localhost
+
+- name: Print_to_file
+  ansible.builtin.copy:
+    content: "{{ result_network.ovirt_networks }}"
+    dest: /home/dens/ansible/roles/ovirt_to_prox/files/network_res.txt
+  delegate_to: localhost
+
+
+#- name: Get_disks
+#  ovirt.ovirt.ovirt_disk_info:
+#    auth: "{{ ovirt_auth }}"
+#    pattern: name="{{ item.name  }}"*
+#  register: result_disks
+#  loop: {{ dict_vm_res  }}
+
+#- name: Debug_disks
+#  ansible.builtin.debug:
+#    msg: "{{ result_disks.ovirt_disks }}"
+
+
+- name: Revoke the SSO token
+  ovirt.ovirt.ovirt_auth:
+    state: absent
+    ovirt_auth: "{{ ovirt_auth }}"

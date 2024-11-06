@@ -1,0 +1,7 @@
+- name: Deploy Proxmox VM
+  hosts: ovirt
+  become: yes
+  gather_facts: false
+ 
+  roles:
+    - ovirt_to_prox

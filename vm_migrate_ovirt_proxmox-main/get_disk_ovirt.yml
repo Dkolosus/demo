@@ -1,0 +1,70 @@
+- name: Copy_disk_from_ovirt
+  hosts: ovirt
+  gather_facts: false
+  vars:
+    api_user: ''
+    api_password: ''
+  tasks:
+    - name: Obtain SSO token with using username/password credentials
+      ovirt.ovirt.ovirt_auth:
+        url: 
+        username: "{{ api_user }}"
+        password: "{{ api_password }}"
+    
+    - name: Get_disk_info 
+      ovirt.ovirt.ovirt_disk_info:
+        auth: "{{ ovirt_auth }}"    
+        pattern: id="{{ disk_id }}"
+      register: result
+
+    - name: Set_vars_name_format
+      set_fact:
+        disk_name: '{{ item.name  }}'
+        disk_size: "{{ item.provisioned_size  }}"
+        disk_format: "{{ item.format  }}"
+      loop: "{{ result.ovirt_disks|flatten(levels=1) }}"
+    
+    - name: Repare_format
+      set_fact:
+        disk_format: 'qcow2'
+      when: disk_format == 'cow'    
+    
+    - name: Create_dict
+      set_fact:
+        temp_dict: {}
+
+    - name: Create dict_file
+      set_fact:
+        temp_dict: "{{temp_dict |combine({item.key: item.value})}}"
+      with_items:
+      - key: name
+        value: "{{ disk_name  }}"
+      - key: format
+        value: "{{ disk_format  }}"
+      
+
+    - name: Create_your_local_file
+      ansible.builtin.file:
+        path: /path/temp_disk_dict.txt
+      delegate_to: localhost
+
+    - name: Print_to_file
+      ansible.builtin.copy:
+        content: "{{ temp_dict }}"
+        dest: /path/temp_disk_dict.txt
+      delegate_to: localhost
+
+    - name: Debug_GetDisk
+      ansible.builtin.debug:
+        msg: "{{ disk_format  }}"
+
+    - name: Download_disk
+      ovirt.ovirt.ovirt_disk:
+        auth: "{{ ovirt_auth }}"
+        id: "{{ disk_id  }}"
+        download_image_path: /mnt/nfs/{{ path_image }}/{{ disk_name }}.{{ disk_format  }}
+
+    - name: Revoke the SSO token
+      ovirt.ovirt.ovirt_auth:
+        state: absent
+        ovirt_auth: "{{ ovirt_auth }}"

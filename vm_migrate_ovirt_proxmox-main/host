@@ -1,0 +1,20 @@
+[sigurd_proxmox_local]
+172.16.201.30
+
+[proxmox]
+proxmox-01.protei.ru  ansible_host=10.10.200.101
+proxmox-02.protei.ru  ansible_host=10.10.200.102
+
+[proxmox:vars]
+ansible_connection=ssh
+ansible_ssh_user=root
+ansible_ssh_pass=VTt7tPbZEu
+
+
+[ovirt]
+ovirt.protei.ru  ansible_host=192.168.0.30
+
+[ovirt:vars]
+ansible_connection=ssh
+ansible_ssh_user=root
+ansible_ssh_pass=
