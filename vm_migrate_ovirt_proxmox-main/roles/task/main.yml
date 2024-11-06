@@ -13,13 +13,13 @@
 
 - name: Create_your_local_file
   ansible.builtin.file:
-    path: /home/dens/ansible/roles/ovirt_to_prox/files/result_vm_res.txt
+    path: result_vm_res.txt
   delegate_to: localhost
 
 - name: Print_to_file
   ansible.builtin.copy:
     content: "{{ result_vm.ovirt_vms }}"
-    dest: /home/dens/ansible/roles/ovirt_to_prox/files/result_vm_res.txt
+    dest: result_vm_res.txt
   delegate_to: localhost
 
 
@@ -34,13 +34,13 @@
 
 - name: Create_your_local_file
   ansible.builtin.file:
-    path: /home/dens/ansible/roles/ovirt_to_prox/files/dict_vm_res.txt
+    path: dict_vm_res.txt
   delegate_to: localhost
 
 - name: Print_to_file
   ansible.builtin.copy:
     content: "{{dict_vm_res}}"
-    dest: /home/dens/ansible/roles/ovirt_to_prox/files/dict_vm_res.txt
+    dest: dict_vm_res.txt
   delegate_to: localhost
 
 - name: Touch_Array_nics
@@ -66,13 +66,13 @@
 
 - name: Create_your_local_file
   ansible.builtin.file:
-    path: /home/dens/ansible/roles/ovirt_to_prox/files/nic_vm_res.txt
+    path: nic_vm_res.txt
   delegate_to: localhost
 
 - name: Print_to_file       
   ansible.builtin.copy: 
     content: "{{nic_res}}"
-    dest: /home/dens/ansible/roles/ovirt_to_prox/files/nic_vm_res.txt
+    dest: nic_vm_res.txt
   delegate_to: localhost
 
 
@@ -107,13 +107,13 @@
 
 - name: Create_your_local_file
   ansible.builtin.file:
-    path: /home/dens/ansible/roles/ovirt_to_prox/files/vnic_profile_res.txt
+    path: vnic_profile_res.txt
   delegate_to: localhost
 
 - name: Print_to_file
   ansible.builtin.copy:
     content: "{{ result_vnic_profile.ovirt_vnic_profiles }}"
-    dest: /home/dens/ansible/roles/ovirt_to_prox/files/vnic_profile_res.txt
+    dest: vnic_profile_res.txt
   delegate_to: localhost
 
 
@@ -162,13 +162,13 @@
 
 - name: Create_your_local_file
   ansible.builtin.file:
-    path: /home/dens/ansible/roles/ovirt_to_prox/files/network_res.txt
+    path: network_res.txt
   delegate_to: localhost
 
 - name: Print_to_file
   ansible.builtin.copy:
     content: "{{ result_network.ovirt_networks }}"
-    dest: /home/dens/ansible/roles/ovirt_to_prox/files/network_res.txt
+    dest: network_res.txt
   delegate_to: localhost
 
 
