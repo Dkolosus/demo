@@ -62,7 +62,7 @@ def check_domain(username):
 
 
 def get_mail_host(username, password, domain):
-    ad = ldap.initialize("ldaps://ldap.protei.ru")
+    ad = ldap.initialize("ldaps://")
     ad.protocol_version = ldap.VERSION3
     try:
         ad.simple_bind_s(f'cn={username}, ou=Users,ou={domain},ou=Mail,dc=protei,dc=ru', f'{password}')
