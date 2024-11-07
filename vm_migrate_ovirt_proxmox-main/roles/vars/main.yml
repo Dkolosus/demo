@@ -7,4 +7,4 @@ node_1:
 node_2: 
 clone_vm: Centos-7
 boot_disk: scsi0
-node_temp: proxmox-01.protei.ru
+node_temp: proxmox-01
