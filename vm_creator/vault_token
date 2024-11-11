@@ -11,3 +11,21 @@ issued_token=$(vault write auth/approle/login role_id=$role_id secret_id=xxxx-xx
 
 # Export token to current env
 export VAULT_ANSIBLE=$issued_token
+
+$ curl \
+    --request POST \
+    --data '{"role_id":"988a9df-...","secret_id":"37b74931..."}' \
+    http://127.0.0.1:8200/v1/auth/approle/login
+
+The response will contain the token at auth.client_token:
+
+{
+  "auth": {
+    "renewable": true,
+    "lease_duration": 2764800,
+    "metadata": {},
+    "policies": ["default", "dev-policy", "test-policy"],
+    "accessor": "5d7fb475-07cb-4060-c2de-1ca3fcbf0c56",
+    "client_token": "98a4c7ab-b1fe-361b-ba0b-e307aacfd587"
+  }
+}
