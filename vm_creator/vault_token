@@ -1,0 +1,13 @@
+VAULT_ROLE_NAME="ansible-approle"
+
+#Role ID retrieval
+role_id=$(vault read --format=json auth/approle/role/${VAULT_ROLE_NAME}/role-id | jq -r '.data.role_id')
+
+# Secret ID retrieval - to execute only once ! 
+#secret_id=$(vault write --format=json -f auth/approle/role/${VAULT_ROLE_NAME}/secret-id | jq -r '.data.secret_id')
+
+# AppRole token retrieval
+issued_token=$(vault write auth/approle/login role_id=$role_id secret_id=xxxx-xxxx-xxxx-xxx-xxxx | awk 'FNR == 3 {print $2}' )
+
+# Export token to current env
+export VAULT_ANSIBLE=$issued_token
