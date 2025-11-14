@@ -65,14 +65,14 @@ def get_mail_host(username, password, domain):
     ad = ldap.initialize("ldaps://")
     ad.protocol_version = ldap.VERSION3
     try:
-        ad.simple_bind_s(f'cn={username}, ou=Users,ou={domain},ou=Mail,dc=protei,dc=ru', f'{password}')
+        ad.simple_bind_s(f'cn={username}, ou=Users,ou={domain},ou=Mail,dc=dc,dc=ru', f'{password}')
     except ldap.INVALID_CREDENTIALS:
         return 1
     except ldap.UNWILLING_TO_PERFORM:
         return 1
     except ldap.SERVER_DOWN:
         return 4
-    basedn = f'ou=Users,ou={domain},ou=Mail,dc=protei,dc=ru'
+    basedn = f'ou=Users,ou={domain},ou=Mail,dc=dc,dc=ru'
     scope = ldap.SCOPE_ONELEVEL
     filterexp = f'(&(ObjectClass=person)(cn={username}))'
     attrlist = ['mailHost']

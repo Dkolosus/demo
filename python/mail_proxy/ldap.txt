@@ -39,11 +39,11 @@ function authuser($user, $pass)
     $emailDomain = getmaildomain($user);
     $emailUsername = getmailuser($user);
 
-    $ldapconfig['host'] = '10.0.250.241';
+    $ldapconfig['host'] = '10.10.10.10';
     $ldapconfig['port'] = '389';
     $ldapconfig['basedn'] = 'ou=' . $emailDomain . ',dc=topdomain,dc=vn';
     $ldapconfig['binduser'] = 'cn=admin,dc=topdomain,dc=vn';
-    $ldapconfig['bindpass'] = 'P@ssw0rd';
+    $ldapconfig['bindpass'] = '';
     $ds = ldap_connect($ldapconfig['host'], $ldapconfig['port']);
 
     if (isset($ds)) {
