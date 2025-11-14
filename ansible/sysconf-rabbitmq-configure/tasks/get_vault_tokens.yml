@@ -15,7 +15,7 @@
 
     - name: Set token_kv vars
       set_fact:
-        cv_url: "https://vault.service.opt.kyt:8200/v1/ansible/data/vault-tokens/vault.{{ ext_dc }}.kyt"
+        cv_url: "https://vault.service/{{ ext_dc }}.kyt"
         cv_token: "{{ vault_token }}"
         cv_delegate_to: localhost
 
@@ -42,7 +42,7 @@
 
     - name: Set token_kv vars
       set_fact:
-        cv_url: "https://vault.service.opt.kyt:8200/v1/ansible/data/vault-tokens/vault.{{ ext_dc }}.kyt"
+        cv_url: "https://vault.service/{{ ext_dc }}.kyt"
         cv_token: "{{ vault_token }}"
         cv_delegate_to: localhost
 
