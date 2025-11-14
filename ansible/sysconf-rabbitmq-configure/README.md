@@ -4,7 +4,7 @@ Role is idempotent.
 
 ### Example config:
 ```
-rabbitmq_config_cd04:
+rabbitmq_config_dc:
 
   - instance: rabbitmq-prod
     rabbitmq_cluster_fqdn: rabbitmq-prod
