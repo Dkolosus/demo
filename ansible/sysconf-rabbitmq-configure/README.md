@@ -2,15 +2,6 @@
 
 Role is idempotent.
 
-Run as:
-```
-ansible-playbook playbooks/sysconf.yml --extra-vars "configure=rabbitmq-configure" --extra-vars "nodes=nodes" --extra-vars "rbmqinstances=rabbitmq-prod"
-```
-
-## Config
-
-Config should be put in 60-rabbitmq.yml under group vars dir.
-
 ### Example config:
 ```
 rabbitmq_config_cd04:
