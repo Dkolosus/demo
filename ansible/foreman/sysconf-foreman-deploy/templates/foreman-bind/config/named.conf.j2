@@ -1,0 +1,18 @@
+// named.conf
+
+include "/etc/bind/rndc.key";
+
+controls  {
+        inet 127.0.0.1 port 953 allow { 127.0.0.1; } keys { "rndc-key"; };
+};
+
+options  {
+        include "/etc/bind/named.conf.options";
+};
+
+include "/etc/bind/zones.rfc1918";
+include "/etc/bind/named.conf.default-zones";
+
+
+// Public view read by Server Admin
+include "/etc/bind/zones.conf";

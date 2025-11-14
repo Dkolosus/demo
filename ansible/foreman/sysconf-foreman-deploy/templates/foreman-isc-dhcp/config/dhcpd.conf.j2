@@ -1,0 +1,47 @@
+default-lease-time 43200;
+max-lease-time 86400;
+
+authoritative;
+
+ddns-update-style none;
+
+option domain-name "{{ foreman_config.foreman_env.domain }}";
+option domain-name-servers {{ foreman_config.foreman_env.host_ip }};
+option ntp-servers none;
+
+allow booting;
+allow bootp;
+
+option fqdn.no-client-update    on;  # set the "O" and "S" flag bits
+option fqdn.rcode2            255;
+option pxegrub code 150 = text ;
+
+# promote vendor in dhcpd.leases
+set vendor-string = option vendor-class-identifier;
+# next server and filename options
+next-server {{ foreman_config.foreman_env.host_ip }};
+option architecture code 93 = unsigned integer 16 ;
+if option architecture = 00:06 {
+filename "grub2/grubia32.efi";
+} elsif option architecture = 00:07 {
+filename "grub2/grubx64.efi";
+} elsif option architecture = 00:09 {
+filename "grub2/grubx64.efi";
+} else {
+filename "pxelinux.0";
+}
+
+log-facility local7;
+
+include "/etc/dhcp/dhcpd.hosts";
+# dens.local
+subnet {{ foreman_config.foreman_env.dhcp_network }} netmask {{ foreman_config.foreman_env.dhcp_network_mask }} {
+
+  option subnet-mask {{ foreman_config.foreman_env.dhcp_network_mask }};
+  option routers {{ foreman_config.foreman_env.host_ip }};
+}
+{% for srv  in foreman_config.foreman_install_servers %}
+
+host {{ srv.hostname }} { hardware ethernet {{ srv.mac }};  fixed-address {{ srv.ip }}; }
+
+{% endfor %}

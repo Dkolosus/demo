@@ -1,0 +1,78 @@
+---
+- name: Set vars {{ rabbitmq_config.instance }}
+  set_fact:
+    pre_payload: {}
+    chk_password: !!null
+    rabbitmq_default_pswd: !!null  
+
+- name: Check ansible_creds_kv
+  include_tasks: check_ansible_creds.yml
+
+- name: Set pswd
+  set_fact:
+    rabbitmq_default_pswd: "{{ chk_password }}"
+  when: chk_password != None
+
+- name: Set pswd
+  set_fact:
+    rabbitmq_default_pswd: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+  when: chk_password == None
+
+- name: Create password hash by shell script
+  ansible.builtin.script: gen_rabbitmq_pswd.sh {{ rabbitmq_default_pswd }}
+  register: pswd_hash
+  delegate_to: localhost
+  connection: local
+  run_once: true
+
+- name: Set base64 hash pswd
+  set_fact:
+    rabbitmq_hash_pswd_base64: "{{ pswd_hash.stdout_lines  | join('\\n') }}"
+
+- name: Create config
+  set_fact:
+    rabbitmq_config_main: "{{ lookup('ansible.builtin.template','rabbitmq.conf')}}"
+
+- name: Create enabled_plugins
+  set_fact:
+    rabbitmq_enabled_plugins: "{{ lookup('ansible.builtin.template','enabled_plugins')}}"
+
+- name: Create definitions_json
+  set_fact:
+    definitions_json: "{{ lookup('ansible.builtin.template','definitions.json.j2')}}"
+
+- name: pre_payload create
+  include_tasks: create_payload.yml
+
+- name: Block copy ansible_creds
+  block:
+    - name: Set post ansible_creds payload
+      set_fact:
+        cv_payload:
+          '{
+          "data": {{ pre_payload }}
+          }'
+    - name: Set vars
+      set_fact:
+        cv_vault_url: "{{ rabbitmq_config.vault_ansible_creds_url }}"
+
+    - name: Get multitoken
+      include_tasks: roles/common_vault/tasks/v2/vault_get_multitoken.yml
+
+    - name: Set ansible_creds_url post vars
+      set_fact:
+        cv_url: "{{ rabbitmq_config.vault_ansible_creds_url }}"
+        cv_token: "{{ cv_vault_token }}"
+        cv_delegate_to: localhost
+
+    - name: Post ansible_creds 
+      include_tasks: roles/common_vault/tasks/v2/api_post.yml
+      run_once: true
+
+  when: ( pre_payload | length ) > 0
+
+- name: Configure instance
+  include_tasks: node_loop.yml
+  loop_control:
+    loop_var: rabbitmq_node
+  loop: "{{ rabbitmq_config.nodes | flatten }}" 

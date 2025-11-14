@@ -1,0 +1,4 @@
+---
+- name: reload isc-dhcp
+  include_tasks: tasks/reload_isc_dhcp.yml
+  listen: "sysconf-foreman: reload isc-dhcp"

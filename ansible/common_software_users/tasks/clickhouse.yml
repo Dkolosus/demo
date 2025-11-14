@@ -1,0 +1,77 @@
+---
+
+#- name: Gen hash pswd
+#  set_fact:
+#    software_user_pswd: "{{ software_user_pswd | ansible.builtin.password_hash('sha256') }}"
+
+- name: Create clickhouse user {{ software_user.name }}
+  community.clickhouse.clickhouse_user:
+    login_db: default
+    login_host: "{{ software_instance.fqdn }}"
+    login_port: "{{ software_instance.port }}"
+    login_user: "{{ software_admin_user }}"
+    login_password: "{{ software_admin_pswd }}"
+    client_kwargs:
+      secure: "{{ software_instance.secure | default(False) | bool }}"
+      verify: False
+    name: "{{ software_user.name }}"
+    password: "{{ software_user_pswd }}"
+#    type_password: sha256_hash
+    state: present
+    update_password: always
+  retries: 3
+  delay: 3
+  run_once: true
+  when: chk_password == None and software_instance.clustername is not defined
+
+- name: Create cluster clickhouse user {{ software_user.name }}
+  community.clickhouse.clickhouse_user:
+    login_db: default
+    login_host: "{{ software_instance.fqdn }}"
+    login_port: "{{ software_instance.port }}"
+    login_user: "{{ software_admin_user }}"
+    login_password: "{{ software_admin_pswd }}"
+    client_kwargs:
+      secure: "{{ software_instance.secure | default(False) | bool }}"
+      verify: False
+    name: "{{ software_user.name }}"
+    password: "{{ software_user_pswd }}"
+#    type_password: sha256_hash
+    cluster: "'{{ software_instance.clustername }}'"
+    state: present
+    update_password: always
+  retries: 3
+  delay: 3
+  run_once: true
+  when: chk_password == None and software_instance.clustername is defined and software_instance.clustername != ""
+
+- name: Put data to vault kv machine
+  include_tasks: kv_loop.yml
+  vars:
+    put_data:
+      '{
+      "{{ software_user_crds_cp.kv.host }}": "{{ software_instance.fqdn }}",
+      "{{ software_user_crds_cp.kv.user }}": "{{ software_user.name }}",
+      "{{ software_user_crds_cp.kv.pswd }}": "{{ software_user_pswd }}",
+      "{{ software_user_crds_cp.kv.port }}": "{{ software_instance.port }}"
+      }'
+  loop_control:
+    loop_var: software_user_crds_cp
+  loop: "{{ software_user.creds_copy | flatten }}"
+  when: software_user_crds_cp.url in chk_url_list and software_user.account_type is defined and software_user.account_type == 'machine'
+
+- name: Put data to vault kv personal
+  include_tasks: kv_loop.yml
+  vars:
+    put_data:
+      '{
+      "host": "{{ software_instance.fqdn }}",
+      "user": "{{ software_user.name }}",
+      "pswd": "{{ software_user_pswd }}",
+      "port": {{ software_instance.port }}
+      }'
+  loop_control:
+    loop_var: software_user_crds_cp
+  loop: "{{ software_user.creds_copy | flatten }}"
+  when: software_user_crds_cp.url in chk_url_list and software_user.account_type is defined and software_user.account_type == 'personal'
+

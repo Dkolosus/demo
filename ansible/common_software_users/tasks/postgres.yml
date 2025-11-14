@@ -1,0 +1,44 @@
+---
+
+- name: Set api post vars
+  set_fact:
+    put_data:
+      '{
+      "{{ software_user_crds_cp.kv.host }}": "{{ software_instance.fqdn }}",
+      "{{ software_user_crds_cp.kv.user }}": "{{ software_user.name }}",
+      "{{ software_user_crds_cp.kv.pswd }}": "{{ software_user_pswd }}",
+      "{{ software_user_crds_cp.kv.port }}": "{{ software_instance.port }}"
+      }'
+  when: software_user.account_type is defined and rsoftware_user.account_type == 'machine'
+
+- name: Set api post vars
+  set_fact:
+    put_data:
+      '{
+      "host": "{{ software_instance.fqdn }}",
+      "user": "{{ software_user.name }}",
+      "pswd": "{{ software_user_pswd }}",
+      "port": "{{ software_instance.port }}"
+      }'
+  when: software_user.account_type is defined and software_user.account_type == 'personal'
+
+- name: Create postgres user {{ software_user.name }}
+  community.postgresql.postgresql_user:
+    db: postgres
+    login_host: "{{ software_instance.fqdn }}"
+    login_port: "{{ software_instance.port }}"
+    login_user: "{{ software_admin_user }}"
+    login_password: "{{ software_admin_pswd }}"
+    name: "{{ software_user.name }}"
+    password: "{{ software_user_pswd }}"
+    role_attr_flags: "{{ software_user.access | default('login', true) }}"
+    state: present
+    run_once: true
+    when: chk_password == None
+
+- name: Put data to vault kv
+  include_tasks: kv_loop.yml
+  loop_control:
+    loop_var: software_user_crds_cp
+  loop: "{{ software_user.creds_copy | flatten }}"
+  when: software_user_crds_cp.url in chk_url_list

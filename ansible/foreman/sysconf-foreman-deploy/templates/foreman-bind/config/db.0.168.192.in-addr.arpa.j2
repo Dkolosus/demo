@@ -1,0 +1,16 @@
+$ORIGIN .
+$TTL 10800      ; 3 hours
+{{ oct_list[2] }}.{{ oct_list[1] }}.{{ oct_list[0] }}.in-addr.arpa IN SOA  foreman-bind.{{ foreman_config.foreman_env.domain }}. root.{{ oct_list[2] }}.{{ oct_list[1] }}.{{ oct_list[0] }}.in-addr.arpa. (
+                                66         ; serial
+                                86400      ; refresh (1 day)
+                                3600       ; retry (1 hour)
+                                604800     ; expire (1 week)
+                                3600       ; minimum (1 hour)
+                                )
+                        NS      foreman-bind.{{ foreman_config.foreman_env.domain }}.
+
+$ORIGIN {{ oct_list[2] }}.{{ oct_list[1] }}.{{ oct_list[0] }}.in-addr.arpa.
+$TTL 86400      ; 1 day
+
+{{ oct_list[3] }}        PTR  foreman-bind.{{ foreman_config.foreman_env.domain }}.
+

@@ -1,0 +1,66 @@
+---
+- name: Copy sources.list file
+  template:
+    src: foreman-isc-dhcp/apt-sources/sources.list.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/apt-sources/sources.list"
+    
+- name: Copy foreman-isc-dhcp Dockerfile
+  template:
+    src: foreman-isc-dhcp/Dockerfile
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/Dockerfile"
+
+- name: Copy foreman-isc-dhcp dhcpd.conf
+  template:
+    src: foreman-isc-dhcp/config/dhcpd.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/dhcpd.conf"
+
+- name: Copy foreman-isc-dhcp dhcpd.hosts
+  template:
+    src: foreman-isc-dhcp/config/dhcpd.hosts
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/dhcpd.hosts"
+
+- name: Copy foreman-isc-dhcp dhcpd.leases
+  template:
+    src: foreman-isc-dhcp/config/dhcpd.leases
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/dhcpd.leases"
+
+- name: Copy foreman-isc-dhcp dhcpd6.conf
+  template:
+    src: foreman-isc-dhcp/config/dhcpd6.conf
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/dhcpd6.conf"
+
+- name: Copy foreman-isc-dhcp hosts
+  template:
+    src: foreman-isc-dhcp/config/hosts.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/hosts"
+
+- name: Copy foreman-isc-dhcp isc-dhcp-server
+  template:
+    src: foreman-isc-dhcp/config/isc-dhcp-server.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/isc-dhcp-server"
+
+- name: Copy foreman-isc-dhcp resolv.conf
+  template:
+    src: foreman-isc-dhcp/config/resolv.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/resolv.conf"
+
+- name: Copy foreman-isc-dhcp resolv.conf
+  template:
+    src: foreman-isc-dhcp/scripts/start_up.sh
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/scripts/start_up.sh"
+
+- name: copying isc-dhcp conf files to local volumes
+  copy:
+    src: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/{{ item }}"
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/"
+    remote_src: true
+  with_items:
+    - dhcpd.conf
+    - dhcpd.hosts
+    - dhcpd6.conf
+
+- name: coping foreman-isc-dhcp-lib config files to local volume
+  copy:
+    src: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/dhcpd.leases"
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp-lib/"
+    remote_src: true

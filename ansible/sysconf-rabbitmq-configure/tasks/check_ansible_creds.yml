@@ -1,0 +1,26 @@
+---
+- name: Set vars
+  set_fact:
+    cv_vault_url: "{{ rabbitmq_config.vault_ansible_creds_url }}"
+
+- name: Get multitoken
+  include_tasks: roles/common_vault/tasks/v2/vault_get_multitoken.yml
+
+- name: Set api get vars
+  set_fact:
+    cv_url: "{{ rabbitmq_config.vault_ansible_creds_url }}"
+    cv_token: "{{  cv_vault_token }}"
+    cv_delegate_to: localhost
+    cv_codes: "[200,204,404,429]"
+
+- name: Get path content
+  include_tasks: roles/common_vault/tasks/v2/api_get.yml
+
+- name: Set user creds
+  set_fact:
+    chk_password: "{{ cv_response.json.data.data.RABBITMQ_PSWD }}"
+  when: cv_response.json.data.data.RABBITMQ_HOST is defined 
+        and cv_response.json.data.data.RABBITMQ_PSWD is defined 
+        and cv_response.json.data.data.RABBITMQ_USER is defined
+        and cv_response.json.data.data.RABBITMQ_USER == rabbitmq_config.rabbitmq_default_user
+        and cv_response.json.data.data.RABBITMQ_HOST == rabbitmq_config.rabbitmq_cluster_fqdn

@@ -1,0 +1,10 @@
+---
+- name: Stop a foreman-isc-dhcp container
+  community.docker.docker_container:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp"
+    state: stopped
+
+- name: Start a foreman-isc-dhcp container
+  community.docker.docker_container:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp"
+    state: started

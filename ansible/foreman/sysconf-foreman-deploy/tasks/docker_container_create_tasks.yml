@@ -1,0 +1,193 @@
+---
+- name: Build foreman-bind image
+  community.docker.docker_image_build:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-bind"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind"
+    dockerfile: Dockerfile
+
+- name: Build foreman-isc-dhcp image
+  community.docker.docker_image_build:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp"
+    dockerfile: Dockerfile
+
+- name: Build foreman-postgresql image
+  community.docker.docker_image_build:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql"
+    dockerfile: Dockerfile
+
+- name: Build foreman-tftpd image
+  community.docker.docker_image_build:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd"
+    dockerfile: Dockerfile
+
+- name: Build foreman-master image
+  community.docker.docker_image_build:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    dockerfile: Dockerfile
+
+- name: Create a foreman-bind container
+  community.docker.docker_container:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-bind"
+    image: "{{ foreman_config.foreman_env.container_prefix }}-foreman-bind"
+    hostname: "foreman-bind.{{ foreman_config.foreman_env.domain }}"
+    network_mode: host
+    auto_remove: false
+    state: started
+    mounts:
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/resolv.conf"
+        target: "/etc/resolv.conf"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/hosts"
+        target: "/etc/hosts"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/named.conf"
+        target: "/etc/bind/named.conf"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/named.conf.options"
+        target: "/etc/bind/named.conf.options"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/zones.conf"
+        target: "/etc/bind/zones.conf"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/db.{{ foreman_config.foreman_env.domain }}"
+        target: "/var/cache/bind/zones/db.{{ foreman_config.foreman_env.domain }}"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/db.{{ oct_list[2] }}.{{ oct_list[1] }}.{{ oct_list[0] }}.in-addr.arpa"
+        target: "/var/cache/bind/zones/db.{{ oct_list[2] }}.{{ oct_list[1] }}.{{ oct_list[0] }}.in-addr.arpa"
+
+- name: Create a foreman-isc-dhcp container
+  community.docker.docker_container:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp"
+    image: "{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp"
+    hostname: "foreman-isc-dhcp.{{ foreman_config.foreman_env.domain }}"
+    network_mode: host
+    auto_remove: false
+    state: started
+    mounts:
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp"
+        target: "/etc/dhcp"
+        propagation: shared
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp-lib"
+        target: "/var/lib/dhcp"
+        propagation: shared
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/isc-dhcp-server"
+        target: "/etc/default/isc-dhcp-server"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/resolv.conf"
+        target: "/etc/resolv.conf"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/hosts"
+        target: "/etc/hosts"
+
+- name: Create a foreman-postgresql container
+  community.docker.docker_container:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql"
+    image: "{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql"
+    hostname: "foreman-postgresql.{{ foreman_config.foreman_env.domain }}"
+    network_mode: host
+    auto_remove: false
+    state: started
+    mounts:
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql"
+        target: "/var/lib/postgresql/14/data"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/config/resolv.conf"
+        target: "/etc/resolv.conf"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/config/hosts"
+        target: "/etc/hosts"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/config/pg_hba.conf"
+        target: "/opt/postgresql/pg_hba.conf"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/config/postgresql.conf"
+        target: "/opt/postgresql/postgresql.conf"
+
+- name: Create a foreman-tftpd container
+  community.docker.docker_container:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd"
+    image: "{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd"
+    hostname: "foreman-tftpd.{{ foreman_config.foreman_env.domain }}"
+    network_mode: host
+    auto_remove: false
+    state: started
+    mounts:
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd"
+        target: "/srv/tftp"
+        propagation: shared
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/config/resolv.conf"
+        target: "/etc/resolv.conf"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/config/hosts"
+        target: "/etc/hosts"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/config/tftpd-hpa"
+        target: "/etc/default/tftpd-hpa"
+
+- name: Create a foreman-master container
+  community.docker.docker_container:
+    name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    image: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    hostname: "foreman-master.{{ foreman_config.foreman_env.domain }}"
+    network_mode: host
+    auto_remove: false
+    state: started
+    mounts:
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/resolv.conf"
+        target: "/etc/resolv.conf"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/hosts"
+        target: "/etc/hosts"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp"
+        target: "/mnt/dhcp"
+        propagation: shared
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp-lib"
+        target: "/mnt/dhcp-lib"
+        propagation: shared
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd"
+        target: "/mnt/tftproot"
+        propagation: shared
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd"
+        target: "/usr/share/foreman/public/pub/tftproot"
+        propagation: shared
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso"
+        target: "/usr/share/foreman/public/pub/iso"
+        propagation: shared
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/database.yml"
+        target: "/etc/foreman/database.yml"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/settings.yaml"
+        target: "/etc/foreman/settings.yaml"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/foreman.yml"
+        target: "/root/.hammer/cli.modules.d/foreman.yml"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/foreman-proxy/settings.yml"
+        target: "/etc/foreman-proxy/settings.yml"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/foreman-proxy/settings.d"
+        target: "/etc/foreman-proxy/settings.d"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/05-foreman.conf"
+        target: "/etc/apache2/conf-enabled/05-foreman.conf"
+      - type: bind
+        source: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/05-foreman-ssl.conf"
+        target: "/etc/apache2/conf-enabled/05-foreman-ssl.conf"

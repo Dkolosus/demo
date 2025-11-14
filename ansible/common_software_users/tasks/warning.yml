@@ -1,0 +1,13 @@
+---
+
+- name: Warning message
+  shell: echo -e '\033[31mWarning Request to create selected users on all instances received !!!\033[0m'
+  when: ( '*' in instances_to_configure ) and ( '*' not in users_to_configure )
+
+- name: Warning message
+  shell: echo -e '\033[31mWarning Request to create all users on selected instances received !!!\033[0m'
+  when: ( '*' in users_to_configure ) and ( '*' not in instances_to_configure )
+
+- name: Warning message
+  shell: echo -e '\033[31mWarning Request to create all users on all instances received !!!\033[0m'
+  when: ( '*' in users_to_configure ) and ( '*' in instances_to_configure )

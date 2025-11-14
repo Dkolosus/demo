@@ -1,0 +1,25 @@
+---
+#
+# Configuration file for remote ISC dhcp provider
+#
+
+:config: /mnt/dhcp/dhcpd.conf
+:leases: /mnt/dhcp-lib/dhcpd.leases
+
+# Redhat 5
+#
+#:config: /etc/dhcpd.conf
+#
+# Settings for Ubuntu
+#
+#:config: /etc/dhcp3/dhcpd.conf
+#:leases: /var/lib/dhcp3/dhcpd.leases
+
+# Specifies TSIG key name and secret
+:key_name: omapi_key
+:key_secret: chVjAa8S5Wt79qQcGbRerw==
+
+
+:omapi_port: 7911
+
+# use :server setting in dhcp.yml if you are managing a dhcp server which is not localhost

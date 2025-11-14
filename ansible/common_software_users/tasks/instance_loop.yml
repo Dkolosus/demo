@@ -1,0 +1,27 @@
+---
+
+# returns cv_vault_token
+- name: Get multitoken
+  include_tasks: roles/common_vault/tasks/v2/vault_get_multitoken.yml
+  vars:
+    cv_vault_url: "{{ software_instance.ansible_creds }}"
+
+# returns cv_response
+- name: Get ansible creds 
+  include_tasks: roles/common_vault/tasks/v2/api_get.yml
+  vars:
+    cv_url: "{{ software_instance.ansible_creds }}"
+    cv_token: "{{ cv_vault_token }}"
+    cv_delegate_to: localhost
+
+- name: Set software_admin vars
+  set_fact:
+    software_admin_user: "{{ cv_response.json.data.data.user }}"
+    software_admin_pswd: "{{ cv_response.json.data.data.pswd }}"
+
+- name: Create User
+  include_tasks: user_loop.yml
+  loop_control:
+    loop_var: software_user
+  loop: "{{ software_instance.users | flatten }}"
+  when: "'*' in users_to_configure or software_user.name in users_to_configure"

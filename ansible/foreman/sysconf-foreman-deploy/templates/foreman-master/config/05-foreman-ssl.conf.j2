@@ -1,0 +1,129 @@
+# ************************************
+# Vhost template in module puppetlabs-apache
+# Managed by Puppet
+# ************************************
+#
+<VirtualHost *:443>
+  ServerName foreman-master.{{ foreman_config.foreman_env.domain }}
+
+  ## Vhost docroot
+  DocumentRoot "/usr/share/foreman/public"
+
+  ## Directories, there should at least be a declaration for /usr/share/foreman/public
+
+  <Directory "/usr/share/foreman/public">
+    Options SymLinksIfOwnerMatch
+    AllowOverride None
+    Require all granted
+  </Directory>
+
+  ## Load additional static includes
+  IncludeOptional "/etc/apache2/conf.d/05-foreman-ssl.d/*.conf"
+
+  ## Logging
+  ErrorLog "/var/log/apache2/foreman-ssl_error_ssl.log"
+  ServerSignature Off
+  CustomLog "/var/log/apache2/foreman-ssl_access_ssl.log" combined
+
+  ## Request header rules
+  ## as per http://httpd.apache.org/docs/2.4/mod/mod_headers.html#requestheader
+  RequestHeader set X_FORWARDED_PROTO "https"
+  RequestHeader set SSL_CLIENT_S_DN "%{SSL_CLIENT_S_DN}s"
+  RequestHeader set SSL_CLIENT_CERT "%{SSL_CLIENT_CERT}s"
+  RequestHeader set SSL_CLIENT_VERIFY "%{SSL_CLIENT_VERIFY}s"
+  RequestHeader unset REMOTE-USER
+  RequestHeader unset REMOTE_USER
+  RequestHeader unset REMOTE-USER-EMAIL
+  RequestHeader unset REMOTE-USER_EMAIL
+  RequestHeader unset REMOTE_USER-EMAIL
+  RequestHeader unset REMOTE_USER_EMAIL
+  RequestHeader unset REMOTE-USER-FIRSTNAME
+  RequestHeader unset REMOTE-USER_FIRSTNAME
+  RequestHeader unset REMOTE_USER-FIRSTNAME
+  RequestHeader unset REMOTE_USER_FIRSTNAME
+  RequestHeader unset REMOTE-USER-LASTNAME
+  RequestHeader unset REMOTE-USER_LASTNAME
+  RequestHeader unset REMOTE_USER-LASTNAME
+  RequestHeader unset REMOTE_USER_LASTNAME
+  RequestHeader unset REMOTE-USER-GROUPS
+  RequestHeader unset REMOTE-USER_GROUPS
+  RequestHeader unset REMOTE_USER-GROUPS
+  RequestHeader unset REMOTE_USER_GROUPS
+
+  # SSL Proxy directives
+  SSLProxyEngine On
+
+  ## Proxy rules
+  ProxyRequests Off
+  ProxyPreserveHost On
+  ProxyAddHeaders On
+  ProxyPass /pulp !
+  ProxyPass /pub !
+  ProxyPass /icons !
+  ProxyPass /images !
+  ProxyPass /server-status !
+  ProxyPass /webpack !
+  ProxyPass /assets !
+#  ProxyPass / unix:///run/foreman.sock|http://foreman/ retry=0 timeout=900 upgrade=websocket
+#  ProxyPassReverse / unix:///run/foreman.sock|http://foreman/
+  ProxyPass / http://127.0.0.1:3000/ retry=0
+  ProxyPassReverse / http://127.0.0.1:3000/
+  ## Server aliases
+  ServerAlias foreman
+
+  ## SSL directives
+  SSLEngine on
+  SSLCertificateFile      "/etc/puppetlabs/puppet/ssl/certs/foreman-master.{{ foreman_config.foreman_env.domain }}.pem"
+  SSLCertificateKeyFile   "/etc/puppetlabs/puppet/ssl/private_keys/foreman-master.{{ foreman_config.foreman_env.domain }}.pem"
+  SSLCertificateChainFile "/etc/puppetlabs/puppet/ssl/certs/ca.pem"
+  SSLVerifyClient         optional
+  SSLVerifyDepth          3
+  SSLCACertificateFile    "/etc/puppetlabs/puppet/ssl/certs/ca.pem"
+  SSLCARevocationFile     "/etc/puppetlabs/puppet/ssl/crl.pem"
+  SSLCARevocationCheck    chain
+  SSLOptions +StdEnvVars +ExportCertData
+
+  ## Custom fragment
+  # Set headers for all possible assets which are compressed
+<FilesMatch \.css\.gz$>
+  ForceType text/css
+  Header set Content-Encoding gzip
+  SetEnv no-gzip
+</FilesMatch>
+<FilesMatch \.js\.gz$>
+  ForceType text/javascript
+  Header set Content-Encoding gzip
+  SetEnv no-gzip
+</FilesMatch>
+<FilesMatch \.svg\.gz$>
+  ForceType image/svg+xml
+  Header set Content-Encoding gzip
+  SetEnv no-gzip
+</FilesMatch>
+
+<LocationMatch "^/(assets|webpack)">
+  Options SymLinksIfOwnerMatch
+  AllowOverride None
+  Require all granted
+
+  # Use standard http expire header for assets instead of ETag
+  <IfModule mod_expires.c>
+    Header unset ETag
+    FileETag None
+    ExpiresActive On
+    ExpiresDefault "access plus 1 year"
+  </IfModule>
+
+  # Return compressed assets if they are precompiled
+  RewriteEngine On
+  # Make sure the browser supports gzip encoding and file with .gz added
+  # does exist on disc before we rewrite with the extension
+  RewriteCond %{HTTP:Accept-Encoding} \b(x-)?gzip\b
+  RewriteCond %{REQUEST_FILENAME} \.(css|js|svg)$
+  RewriteCond %{REQUEST_FILENAME}.gz -s
+  RewriteRule ^(.+) $1.gz [L]
+</LocationMatch>
+
+
+  AddDefaultCharset UTF-8
+</VirtualHost>

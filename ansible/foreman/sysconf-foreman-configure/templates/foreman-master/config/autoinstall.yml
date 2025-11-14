@@ -1,0 +1,85 @@
+#cloud-config
+autoinstall:
+  version: 1
+  early-commands:
+    - apt-get install -y efibootmgr
+    - bash -c "if efibootmgr | grep KYT  ; then echo ' ' &&  echo  'FATAL UuqD> ***** SERVER ALREADY MANAGED BY OPTIMUM KYT *****' && echo ' ' && echo 'Skipping installation !!!' && echo ' ' &&  exit 1 ; else exit 0 ; fi"
+  source:
+    id: ubuntu-server-minimal
+  keyboard:
+    layout: us
+    toggle: null
+    variant: ''
+  locale: en_US.UTF-8
+  timezone: Europe/Moscow
+  apt:
+    fallback: offline-install
+    package_update: false
+    package_upgrade: false
+    geoip: false
+    disable_suites: [backports,security]
+  identity:
+    username: {{ foreman_config.foreman_env.os.login }}
+    hostname: ubuntu2204.optimum.com
+    password: "{{ os_hash_pass }}"
+  network:
+    version: 2
+    ethernets:
+      {{ foreman_config.foreman_env.os.iface }}:
+        dhcp4: true
+        dhcp6: false
+  ssh:
+    allow-pw: true
+    install-server: true
+  shutdown: reboot
+  storage:
+    config:
+# Partition table of two disks
+    - { ptable: gpt, path: /dev/{{ foreman_config.foreman_env.os.hdd_1 }}, wipe: superblock-recursive, preserve: false, name: '', grub_device: false, type: disk, id: disk-{{ foreman_config.foreman_env.os.hdd_1 }} }
+    - { ptable: gpt, path: /dev/{{ foreman_config.foreman_env.os.hdd_2 }}, wipe: superblock-recursive, preserve: false, name: '', grub_device: false, type: disk, id: disk-{{ foreman_config.foreman_env.os.hdd_2 }} }
+
+# Install GRUB on first disk
+    - { device: disk-{{ foreman_config.foreman_env.os.hdd_1 }}, size: 512M, wipe: superblock, flag: boot, number: 1, preserve: false, grub_device: true, type: partition, id: partition-1 }
+    - { fstype: fat32, volume: partition-1, preserve: false, type: format, id: format-1 }
+
+# Install GRUB on second disk
+    - { device: disk-{{ foreman_config.foreman_env.os.hdd_2 }}, size: 512M, wipe: superblock, flag: boot, number: 1, preserve: false, grub_device: true, type: partition, id: partition-2 }
+    - { fstype: fat32, volume: partition-2, preserve: false, type: format, id: format-2 }
+
+# Make boot partitions on disks    
+    - { device: disk-{{ foreman_config.foreman_env.os.hdd_1 }}, size: 1.5G, wipe: superblock, flag: '', number: 2, preserve: false, grub_device: false, type: partition, id: partition-3 }
+    - { device: disk-{{ foreman_config.foreman_env.os.hdd_2 }}, size: 1.5G, wipe: superblock, flag: '', number: 2, preserve: false, grub_device: false, type: partition, id: partition-4 }
+
+# Make swap partitions on disks    
+    - { device: disk-{{ foreman_config.foreman_env.os.hdd_1 }}, size: 8G, wipe: superblock, flag: '', number: 3, preserve: false, grub_device: false, type: partition, id: partition-5 }
+    - { device: disk-{{ foreman_config.foreman_env.os.hdd_2 }}, size: 8G, wipe: superblock, flag: '', number: 3, preserve: false, grub_device: false, type: partition, id: partition-6 }
+
+# Make root partitions on disks
+    - { device: disk-{{ foreman_config.foreman_env.os.hdd_1 }}, size: -1, wipe: superblock, flag: '', number: 4, preserve: false, grub_device: false, type: partition, id: partition-7 }
+    - { device: disk-{{ foreman_config.foreman_env.os.hdd_2 }}, size: -1, wipe: superblock, flag: '', number: 4, preserve: false, grub_device: false, type: partition, id: partition-8 }
+ 
+# Make boot md
+    - { name: md2, raidlevel: raid1, devices: [ partition-3, partition-4 ], spare_devices: [], preserve: false, wipe: superblock, type: raid, id: raid-127 }
+
+# Make swap md
+    - { name: md3, raidlevel: raid1, devices: [ partition-5, partition-6 ], spare_devices: [], preserve: false, wipe: superblock, type: raid, id: raid-128 }
+
+# Make root md
+    - { name: md4, raidlevel: raid1, devices: [ partition-7, partition-8 ], spare_devices: [], preserve: false, wipe: superblock, type: raid, id: raid-129 }
+
+# Make filesystems 
+    - { fstype: ext4, volume: raid-127, preserve: false, type: format, id: format-3 }
+    - { fstype: swap, volume: raid-128, preserve: false, type: format, id: format-4 }
+    - { fstype: ext4, volume: raid-129, preserve: false, type: format, id: format-5 }
+
+# Mounts 
+    - { path: /boot, device: format-3, type: mount, id: mount-3 }
+    - { path: '', device: format-4, type: mount, id: mount-4 }
+    - { path: /, device: format-5, type: mount, id: mount-5 }
+
+# Mounts efi
+    - { path: /boot/efi, device: format-1, type: mount, id: mount-1 }
+    - { path: /boot/efi2, device: format-2, type: mount, id: mount-2 }
+
+  late-commands:
+    - bash -c "efibootmgr -c -d /dev/{{ foreman_config.foreman_env.os.hdd_1 }} -p 1 -L KYT -l '\EFI\ubuntu\shimx64.efi'"

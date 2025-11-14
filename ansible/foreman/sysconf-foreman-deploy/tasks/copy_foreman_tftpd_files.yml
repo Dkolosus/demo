@@ -1,0 +1,32 @@
+---
+- name: Copy sources.list file
+  template:
+    src: foreman-tftpd/apt-sources/sources.list.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/apt-sources/sources.list"
+
+- name: Copy foreman-tftpd Dockerfile
+  template:
+    src: foreman-tftpd/Dockerfile
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/Dockerfile"
+
+- name: Copy foreman-tftpd hosts
+  template:
+    src: foreman-tftpd/config/hosts.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/config/hosts"
+
+- name: Copy foreman-tftpd resolv.conf
+  template:
+    src: foreman-tftpd/config/resolv.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/config/resolv.conf"
+
+- name: Copy foreman-tftpd tftpd-hpa
+  template:
+    src: foreman-tftpd/config/tftpd-hpa
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/config/tftpd-hpa"
+
+- name: Copy foreman-tftpd start_up.sh
+  template:
+    src: foreman-tftpd/scripts/start_up.sh
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/scripts/start_up.sh"
+    
+

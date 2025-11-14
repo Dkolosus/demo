@@ -1,0 +1,46 @@
+---
+- name: Copy sources.list file
+  template:
+    src: foreman-postgresql/apt-sources/sources.list.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/apt-sources/sources.list"
+   
+- name: Copy foreman-postgressql Dockerfile
+  template:
+    src: foreman-postgresql/Dockerfile
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/Dockerfile"
+
+- name: Copy foreman-postgresql hosts
+  template:
+    src: foreman-postgresql/config/hosts.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/config/hosts"
+
+- name: Copy foreman-postgresql resolv.conf
+  template:
+    src: foreman-postgresql/config/resolv.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/config/resolv.conf"
+
+- name: Copy foreman-postgressql pg_hba.conf
+  template:
+    src: foreman-postgresql/config/pg_hba.conf
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/config/pg_hba.conf"
+
+- name: Copy foreman-postgressql postgresql.conf
+  template:
+    src: foreman-postgresql/config/postgresql.conf
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/config/postgresql.conf"
+
+- name: Copy foreman-postgressql foreman.sql
+  template:
+    src: foreman-postgresql/scripts/foreman.sql
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/scripts/foreman.sql"
+
+- name: Copy foreman-postgressql foreman_tables.sql
+  copy:
+    src: foreman-postgresql/foreman_tables.sql
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/scripts/foreman_tables.sql"
+
+- name: Copy foreman-postgressql start_up.sh
+  template:
+    src: foreman-postgresql/scripts/start_up.sh
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql/scripts/start_up.sh"
+    

@@ -1,0 +1,31 @@
+# High-level way to create user for software:
+#  - postgresql
+#  - clickhouse
+#  - rabbitmq
+#
+# UseCase / Scenario: create user and put creds to vault kv
+#
+# Input parameters:
+#   software:  postgres or clickhouse or rabbitmq
+#   instances: list instances for user create ( default * )
+#   users:     list users to create ( default * )
+# Output results:
+#   user was created
+---
+
+- import_tasks: environment.yml
+
+- import_tasks: warning.yml
+
+- name: Create Users on target {{ software_to_configure }} instance
+  include_tasks: instance_loop.yml
+  loop_control:
+    loop_var: software_instance
+  loop: "{{ users_facts | flatten }}"
+  when: users_facts is defined
+        and users_facts != []
+        and users_facts != None
+        and (( software_instance.instance in instances_to_configure)
+        or ('*' in instances_to_configure))
+
+  

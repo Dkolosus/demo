@@ -1,0 +1,95 @@
+<?php
+if (!isset($_SERVER["HTTP_AUTH_USER"]) || !isset($_SERVER["HTTP_AUTH_PASS"])) {
+    fail();
+}
+
+$username = $_SERVER["HTTP_AUTH_USER"];
+$userpass = $_SERVER["HTTP_AUTH_PASS"];
+$protocol = $_SERVER["HTTP_AUTH_PROTOCOL"];
+
+// default backend port
+$backend_port = 110;
+
+if ($protocol == "imap") {
+    $backend_port = 143;
+}
+
+$backend_ip["domain1.com"] = "10.10.10.10";
+$backend_ip["domain2.com"] = "10.10.10.11";
+
+// Authenticate the user or fail
+if (!authuser($username, $userpass)) {
+    fail();
+    exit;
+}
+
+$userserver = getmaildomain($username);
+
+$server_ip = (isset($backend_ip[$userserver])) ? $backend_ip[$userserver] : $userserver;
+
+// Pass!
+pass($server_ip, $backend_port);
+
+//END
+
+function authuser($user, $pass)
+{
+    $pass = str_replace('%20', ' ', $pass);
+    $pass = str_replace('%25', '%', $pass);
+    $emailDomain = getmaildomain($user);
+    $emailUsername = getmailuser($user);
+
+    $ldapconfig['host'] = '10.0.250.241';
+    $ldapconfig['port'] = '389';
+    $ldapconfig['basedn'] = 'ou=' . $emailDomain . ',dc=topdomain,dc=vn';
+    $ldapconfig['binduser'] = 'cn=admin,dc=topdomain,dc=vn';
+    $ldapconfig['bindpass'] = 'P@ssw0rd';
+    $ds = ldap_connect($ldapconfig['host'], $ldapconfig['port']);
+
+    if (isset($ds)) {
+        ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
+        ldap_set_option($ds, LDAP_OPT_REFERRALS, 0);
+        ldap_set_option($ds, LDAP_OPT_NETWORK_TIMEOUT, 10);
+
+        if (isset($user) && isset($pass)) {
+            if (ldap_bind($ds, $ldapconfig['binduser'], $ldapconfig['bindpass'])) {
+                if ($search_result = ldap_search($ds, $ldapconfig['basedn'], "(|(uid=%U)(sAMAccountName=%U))")) {
+                    $entries = ldap_get_entries($ds, $search_result);
+                    if ($entries['count'] == 1) {
+                        $dn = $entries[0]['dn'];
+                        if (ldap_bind($ds, $dn, $pass)) {
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return false;
+}
+
+function getmaildomain($user)
+{
+    return substr($user, strpos($user, '@') + 1);
+}
+
+function getmailuser($user)
+{
+    return substr($user, 0, strpos($user, '@'));
+}
+
+function fail()
+{
+    header("Auth-Status: Invalid login or password");
+    exit;
+}
+
+function pass($server, $port)
+{
+    header("Auth-Status: OK");
+    header("Auth-Server: $server");
+    header("Auth-Port: $port");
+    exit;
+}

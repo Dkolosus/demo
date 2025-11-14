@@ -1,0 +1,22 @@
+---
+
+- name: Set role-specific extra vars
+  set_fact:
+    software_to_configure: "{{ software }}"
+    instances_to_configure: "{{ instances }}"
+    users_to_configure: "{{ users }}"
+
+- name: Set search users regex_pattern var
+  set_fact:
+    regex_pattern: "^{{ software_to_configure }}_users"
+
+- name: Consolidate users configurations
+  set_fact:
+    users_facts: >-
+      {{
+        hostvars[inventory_hostname]
+        | dict2items
+        | selectattr('key', 'search', regex_pattern)
+        | map(attribute='value')
+      }}
+

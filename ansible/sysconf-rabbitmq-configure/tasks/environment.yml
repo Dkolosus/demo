@@ -1,0 +1,14 @@
+---
+- name: Set role-specific extra vars
+  set_fact:
+    instances_to_configure: "{{ rbmqinstances | split(',') }}"
+
+- name: Consolidate rabbitmq_config configurations
+  set_fact:
+    rabbitmq_config_facts: >-
+      {{
+        hostvars[inventory_hostname]
+        | dict2items
+        | selectattr('key', 'search', '^rabbitmq_config')
+        | map(attribute='value')
+      }}

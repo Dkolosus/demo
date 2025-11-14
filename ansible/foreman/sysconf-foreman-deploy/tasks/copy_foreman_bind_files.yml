@@ -1,0 +1,51 @@
+---
+- name: Copy sources.list file
+  template:
+    src: foreman-bind/apt-sources/sources.list.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/apt-sources/sources.list"
+  
+- name: Copy ptr 
+  template:
+    src: foreman-bind/config/db.0.168.192.in-addr.arpa.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/db.{{ oct_list[2] }}.{{ oct_list[1] }}.{{ oct_list[0] }}.in-addr.arpa"
+
+- name: Copy zone A file
+  template:
+    src: foreman-bind/config/db.temp.local.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/db.{{ foreman_config.foreman_env.domain }}"
+
+- name: Copy hosts file
+  template:
+    src: foreman-bind/config/hosts.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/hosts"
+
+- name: Copy named.conf file
+  template:
+    src: foreman-bind/config/named.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/named.conf"
+
+- name: Copy named.conf.options file
+  template:
+    src: foreman-bind/config/named.conf.options.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/named.conf.options"
+
+- name: Copy resolv.conf
+  template:
+    src: foreman-bind/config/resolv.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/resolv.conf"
+
+- name: Copy bind zone config file
+  template:
+    src: foreman-bind/config/zones.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/config/zones.conf"
+
+- name: Copy bind Docker file
+  template:
+    src: foreman-bind/Dockerfile.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/Dockerfile"
+
+- name: Copy bind start_up.sh
+  template:
+    src: foreman-bind/scripts/start_up.sh
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-bind/scripts/start_up.sh"
+    

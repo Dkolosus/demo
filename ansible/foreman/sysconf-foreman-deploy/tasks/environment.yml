@@ -1,0 +1,121 @@
+---
+- name: set oct_list
+  set_fact:
+    oct_list: "{{ foreman_config.foreman_env.host_ip | split('.') }}"
+
+- name: Hash OS password
+  set_fact:
+    os_hash_pass: "{{ foreman_config.foreman_env.os.password| password_hash }}"
+
+- name: Create folbers in foreman_config.foreman_env.install_path
+  file:
+    path="{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-{{ item.0 }}/{{ item.1 }}"
+    state=directory
+  with_nested:
+    - "{{ foreman_config.foreman_folbers }}"
+    - "{{ foreman_config.foreman_config_folbers }}"
+  when: item.0 != "foreman-volumes"
+
+- name: Create folbers in foreman-master/config 
+  file:
+    path="{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/foreman-proxy"
+    state=directory
+  
+- name: Create folbers in foreman-master/config/foreman-proxy
+  file:
+    path="{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/foreman-proxy/settings.d"
+    state=directory
+
+- name: Create foreman-volumes folbers
+  file:
+    path="{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-{{ item }}"
+    state=directory
+  loop: "{{ foreman_config.foreman_folbers }}"
+  when: item != "foreman-volumes"
+
+- name: Create foreman-volumes iscd-dhcp-lib folber
+  file:
+    path="{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp-lib"
+    state=directory
+
+- name: Create foreman-http-iso casper folber
+  file:
+    path="{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso/casper"
+    state=directory
+
+- name: Change permission on postgresql dir
+  file:
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql"
+    state: directory
+    owner: "{{ 101 }}"
+    group: "{{ 103 }}"
+
+- name: copy tftproot
+  copy:
+    src: tftproot/
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/"
+
+- name: set executable grub2 files
+  file:
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-tftpd/grub2/grubx64.efi"
+    mode: a+x
+
+- name: Check {{ foreman_config.foreman_env.iso_name }} exist
+  ansible.builtin.stat:
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso/{{ foreman_config.foreman_env.iso_name }}"
+  register: iso_file
+
+- name: Download {{ foreman_config.foreman_env.iso_name }}
+  ansible.builtin.get_url:
+    url: "{{ foreman_config.foreman_env.iso_url }}"
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso/{{ foreman_config.foreman_env.iso_name }}"
+    mode: '0755'
+  when: iso_file.stat.exists == false
+
+- name: Check initrd exist
+  ansible.builtin.stat:
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso/casper/initrd"
+  register: initrd_file
+
+- name: Check vmlinuz exist
+  ansible.builtin.stat:
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso/casper/vmlinuz"
+  register: vmlinuz_file
+
+- block:
+
+  - name: Mount {{ foreman_config.foreman_env.iso_name }}
+    ansible.posix.mount:
+      path: /mnt/iso
+      src: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso/{{ foreman_config.foreman_env.iso_name }}"
+      fstype: iso9660
+      state: mounted
+
+  - name: Copy files {{ foreman_config.foreman_env.iso_name }}
+    ansible.builtin.copy:
+      src: "/mnt/iso/casper/{{ item }}"
+      dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso/casper/{{ item }}"
+      mode: '0644'
+      remote_src: true
+    loop:
+      - initrd
+      - vmlinuz
+
+  - name: Unmount {{ foreman_config.foreman_env.iso_name }} iso
+    ansible.posix.mount:
+      path: /mnt/iso
+      src: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso/{{ foreman_config.foreman_env.iso_name }}"
+      fstype: iso9660
+      state: absent
+      
+  when: initrd_file.stat.exists == false or vmlinuz_file.stat.exists == false
+  
+- import_tasks: copy_foreman_bind_files.yml
+
+- import_tasks: copy_foreman_isc_files.yml
+
+- import_tasks: copy_foreman_master.yml
+
+- import_tasks: copy_foreman_postgresql_files.yml
+
+- import_tasks: copy_foreman_tftpd_files.yml

@@ -1,0 +1,115 @@
+---
+- name: Set vars
+  set_fact:
+    kv_pre_payload: {}
+
+- name: Set node specific env conf
+  set_fact:
+    rabbitmq_env_node: "{{ lookup('ansible.builtin.template','rabbitmq-env.conf')}}"
+
+- name: Calculate hash of  config data
+  set_fact:
+    main_config_hash: "{{ rabbitmq_config_main | hash }}"
+    main_env_hash: "{{ rabbitmq_env_node | hash }}"
+    main_plugins_hash: "{{ rabbitmq_enabled_plugins | hash }}"
+
+- name: Set vars
+  set_fact:
+    cv_vault_url: "{{ rabbitmq_config.vault_deploy_url }}"
+
+- name: Get multitoken
+  include_tasks: roles/common_vault/tasks/v2/vault_get_multitoken.yml
+
+- name: Set api get vars
+  set_fact:
+    cv_url: "{{ rabbitmq_config.vault_deploy_url }}/rabbitmq-{{ rabbitmq_node.id }}"
+    cv_token: "{{ cv_vault_token }}"
+    cv_delegate_to: localhost
+    cv_codes: "[200,204,404,429]"
+
+- name: Get path content
+  include_tasks: roles/common_vault/tasks/v2/api_get.yml
+
+- name: Calculate hash of vault rabbitmq config
+  set_fact:
+    vault_config_hash: "{{ cv_response.json.data.data.rabbitmq_config | hash }}"
+  when: cv_response.status != 404 and cv_response.json.data.data.rabbitmq_config is defined
+
+- name: Calculate hash of vault rabbitmq env
+  set_fact:
+    vault_env_hash: "{{ cv_response.json.data.data.rabbitmq_env | hash }}"
+  when: cv_response.status != 404 and cv_response.json.data.data.rabbitmq_env is defined
+
+- name: Calculate hash of vault rabbitmq plugins
+  set_fact:
+    vault_plugins_hash: "{{ cv_response.json.data.data.enabled_plugins | hash }}"
+  when: cv_response.status != 404 and cv_response.json.data.data.enabled_plugins is defined
+
+- name: Block combine payload if vault not data exist
+  block:
+
+    - name: Set kv_pre_payload
+      set_fact:
+        kv_pre_payload:
+          {
+          "rabbitmq_config": "{{ rabbitmq_config_main }}",
+          "rabbitmq_env": "{{ rabbitmq_env_node }}",
+          "enabled_plugins": "{{ rabbitmq_enabled_plugins }}",
+          "definitions": "{{ definitions_json }}"
+          }
+
+  when: cv_response.status == 404
+
+- name: Block combine payload if vault data exist
+  block:
+
+    - name: Combine rabbitmq_config
+      set_fact:
+        kv_pre_payload: '{{ kv_pre_payload | combine( { "rabbitmq_config": rabbitmq_config_main  } ) }}'
+      when: vault_config_hash is defined and main_config_hash != vault_config_hash
+            or cv_response.json.data.data.rabbitmq_config is undefined
+
+    - name: Combine rabbitmq_env
+      set_fact:
+        kv_pre_payload: '{{ kv_pre_payload | combine( { "rabbitmq_env": rabbitmq_env_node  } ) }}'
+      when: vault_env_hash is defined and main_env_hash != vault_env_hash
+            or cv_response.json.data.data.rabbitmq_env is undefined
+
+    - name: Combine enabled_plugins
+      set_fact:
+        kv_pre_payload: '{{ kv_pre_payload | combine( { "enabled_plugins": rabbitmq_enabled_plugins } ) }}'
+      when: vault_plugins_hash is defined and main_plugins_hash != vault_plugins_hash
+            or cv_response.json.data.data.enabled_plugins is undefined
+    
+    - name: Combine definitions_json
+      set_fact:
+        kv_pre_payload: '{{ kv_pre_payload | combine( { "definitions": definitions_json } ) }}'
+    
+    - name: Combine kv_data kv_pre_payload
+      set_fact:
+        kv_pre_payload: "{{ cv_response.json.data.data | combine( kv_pre_payload ) }}"
+      when: cv_response.json.data.data is defined and ( kv_pre_payload | length ) > 0
+
+  when: cv_response.status != 404  
+
+- name: Post configs block
+  block:
+  
+    - name: Set post config payload
+      set_fact:
+        cv_payload:
+          '{
+          "data": {{ kv_pre_payload }}
+          }'
+
+    - name: Set vault_deploy post vars
+      set_fact:
+        cv_url: "{{ rabbitmq_config.vault_deploy_url }}/rabbitmq-{{ rabbitmq_node.id }}"
+        cv_token: "{{ cv_vault_token }}"
+        cv_delegate_to: localhost
+
+    - name: Post config 
+      include_tasks: roles/common_vault/tasks/v2/api_post.yml
+      run_once: true
+
+  when: ( kv_pre_payload | length ) > 0

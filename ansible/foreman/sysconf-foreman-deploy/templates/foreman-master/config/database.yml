@@ -1,0 +1,8 @@
+---
+production:
+  adapter: postgresql
+  host: {{ foreman_config.foreman_env.host_ip }}
+  database: foreman
+  username: foreman
+  password: "foreman"
+  pool: 9

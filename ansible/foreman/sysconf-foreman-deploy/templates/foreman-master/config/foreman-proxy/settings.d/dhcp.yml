@@ -1,0 +1,5 @@
+---
+:enabled: https
+:use_provider: dhcp_remote_isc
+:server: {{ foreman_config.foreman_env.host_ip }}
+:ping_free_ip: true

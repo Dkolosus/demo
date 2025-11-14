@@ -1,0 +1,53 @@
+---
+
+- name: Initializing variables
+  set_fact:
+    chk_user: !!null
+    chk_password: !!null
+    chk_url_list: []
+
+# returns chk_url_list and chk_password
+- name: Check user
+  include_tasks: check_user.yml
+  loop_control:
+    loop_var: check_user_crds_cp
+  loop: "{{ software_user.creds_copy | flatten }}"
+
+- block:
+
+  # returns pswd
+  - name: Generate password for personal or management user 
+    ansible.builtin.include_tasks: roles/common_pwgen/tasks/pwgen_personal.yml
+    when:  ( software_user.account_type is defined and software_user.account_type == "personal" )
+        or ( software_user.account_access_type is defined and software_user.account_access_type == "management" )
+
+  # returns pswd
+  - name: Generate password for machine or amqp user
+    ansible.builtin.include_tasks: roles/common_pwgen/tasks/pwgen_machinery.yml
+    when:  ( software_user.account_type is defined and software_user.account_type == "machine" )
+        or ( software_user.account_access_type is defined and software_user.account_access_type == "amqp" )
+  
+  - name: Set new pswd var
+    set_fact:
+      software_user_pswd: "{{ pswd }}"
+
+  when: chk_password == None
+
+- name: Set current pswd var
+  set_fact:
+    software_user_pswd: "{{ chk_password }}"
+  when: chk_password != None
+
+- block:
+
+  - import_tasks: rabbitmq.yml
+    when: software_to_configure == 'rabbitmq'
+  
+  - import_tasks: postgres.yml
+    when: software_to_configure == 'postgres'
+
+  - import_tasks: clickhouse.yml
+    when: software_to_configure == 'clickhouse'
+
+  when: ( chk_url_list | length ) > 0
+

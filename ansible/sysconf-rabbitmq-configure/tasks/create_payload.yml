@@ -1,0 +1,25 @@
+---
+
+- name: Set PAYLOAD
+  set_fact:
+    pre_payload:
+      {
+      "RABBITMQ_HOST": "{{ rabbitmq_config.rabbitmq_cluster_fqdn }}",
+      "RABBITMQ_USER": "{{ rabbitmq_config.rabbitmq_default_user }}",
+      "RABBITMQ_PSWD": "{{ rabbitmq_default_pswd }}",
+      "RABBITMQ_PORT": "{{ rabbitmq_config.rabbitmq_amqp_ssl_port }}",
+      "RABBITMQ_VHOST": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "RABBITMQ_HTTP_API_PORT": "{{ rabbitmq_config.rabbitmq_http_ssl_port }}"
+      }
+  when: cv_response.status == 404
+        or ( cv_response.json.data.data.RABBITMQ_HOST is defined and cv_response.json.data.data.RABBITMQ_HOST != rabbitmq_config.rabbitmq_cluster_fqdn )
+        or ( cv_response.json.data.data.RABBITMQ_USER is defined and cv_response.json.data.data.RABBITMQ_USER != rabbitmq_config.rabbitmq_default_user )
+        or ( cv_response.json.data.data.RABBITMQ_PORT is defined and cv_response.json.data.data.RABBITMQ_PORT != rabbitmq_config.rabbitmq_amqp_ssl_port )
+        or ( cv_response.json.data.data.RABBITMQ_VHOST is defined and cv_response.json.data.data.RABBITMQ_VHOST != rabbitmq_config.rabbitmq_default_vhost ) 
+        or ( cv_response.json.data.data.RABBITMQ_HTTP_API_PORT is defined and cv_response.json.data.data.RABBITMQ_HTTP_API_PORT != rabbitmq_config.rabbitmq_http_ssl_port )
+
+- name: Combine vault data <- pre_payload
+  set_fact:
+    pre_payload: "{{ cv_response.json.data.data | combine( pre_payload ) }}"
+  when: cv_response.status != 404 and cv_response.json.data.data is defined and ( pre_payload | length ) > 0
+  

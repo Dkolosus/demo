@@ -1,0 +1,46 @@
+---
+- name: Check host exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer host list | grep  {{ item.hostname }}"
+  register: check_host
+  failed_when: check_host.rc == 2
+  changed_when: check_host.rc == 1
+
+- name: Create host
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    argv:
+    - hammer
+    - "host"
+    - "create"
+    - "--name"
+    - "{{ item.hostname }}"
+    - "--enabled"
+    - "true"
+    - "--puppet-environment-id"
+    - "1"
+    - "--location-title"
+    - "{{ foreman_config.foreman_env.location }}"
+    - "--organization-title"
+    - "{{ foreman_config.foreman_env.org }}"
+    - "--puppet-proxy-id"
+    - "1"
+    - "--puppet-ca-proxy-id"
+    - "1"
+    - "--architecture-id"
+    - "1"
+    - "--operatingsystem-id"
+    - "1"
+    - "--partition-table"
+    - "Preseed default"
+    - "--medium"
+    - "ubuntu_22.04_local"
+    - "--pxe-loader"
+    - "Grub2 UEFI"
+    - "--root-password"
+    - "{{ foreman_config.foreman_env.root_pass }}"
+    - "--interface"
+    - "primary=true, type=interface, domain_id=1, subnet_id=1, managed=true, provision=true, mac={{ item.mac }}, ip={{ item.ip }}, name={{ item.hostname }}"
+  when: check_host.rc == 1
+  notify: "sysconf-foreman: reload isc-dhcp"

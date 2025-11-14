@@ -1,0 +1,4 @@
+:foreman:
+ :host: https://foreman-master.{{ foreman_config.foreman_env.domain }}
+ :username: admin
+ :password: {{ foreman_config.foreman_env.admin_pass }}

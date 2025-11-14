@@ -1,0 +1,4 @@
+---
+:ssldir: 
+:puppetca_use_sudo: 
+:sudo_command: 

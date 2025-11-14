@@ -1,0 +1,109 @@
+---
+- name: Copy sources.list file
+  template:
+    src: foreman-master/apt-sources/sources.list.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/apt-sources/sources.list"
+
+- name: Copy foreman-master Dockerfile
+  template:
+    src: foreman-master/Dockerfile
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/Dockerfile"
+
+- name: Copy foreman-master foreman.list
+  template:
+    src: foreman-master/apt-sources/foreman.list.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/apt-sources/foreman.list"
+
+- name: Copy foreman-master puppet.list
+  template:
+    src: foreman-master/apt-sources/puppet.list.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/apt-sources/puppet.list"
+    
+- name: Copy foreman-master 05-foreman-ssl.conf
+  template:
+    src: foreman-master/config/05-foreman-ssl.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/05-foreman-ssl.conf"
+
+- name: Copy foreman-master 05-foreman.conf
+  template:
+    src: foreman-master/config/05-foreman.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/05-foreman.conf"
+
+- name: Copy foreman-master hosts
+  template:
+    src: foreman-master/config/hosts.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/hosts"
+
+- name: Copy foreman-master resolv.conf
+  template:
+    src: foreman-master/config/resolv.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/resolv.conf"
+
+- name: Copy foreman-master foreman.asc
+  template:
+    src: foreman-master/key/foreman.asc.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/key/foreman.asc"
+
+- name: Copy foreman-master puppet.gpg
+  template:
+    src: foreman-master/key/puppet.gpg.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/key/puppet.gpg"
+
+- name: Copy foreman-master provisioning template preseed_ubuntu2204_snippet
+  template:
+    src: foreman-master/config/preseed_ubuntu2204_snippet.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/preseed_ubuntu2204_snippet"
+
+- name: Copy foreman-master provisioning template PXEGrub2_ubuntu2204_efi
+  template:
+    src: foreman-master/config/PXEGrub2_ubuntu2204_efi
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/PXEGrub2_ubuntu2204_efi"
+
+- name: Copy foreman-master provisioning template PXELinux_ubuntu2204
+  template:
+    src: foreman-master/config/PXELinux_ubuntu2204
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/PXELinux_ubuntu2204"
+
+- name: Copy foreman-master hammer-cli cred
+  template:
+    src: foreman-master/config/foreman.yml
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/foreman.yml"
+
+- name: Copy foreman-master entrypoint.sh
+  template:
+    src: foreman-master/scripts/entrypoint.sh
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/scripts/entrypoint.sh"
+
+- name: Copy foreman-master start_up.sh
+  template:
+    src: foreman-master/scripts/start_up.sh
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/scripts/start_up.sh"
+
+- name: Copy foreman-master database.yml file
+  template:
+    src: foreman-master/config/database.yml
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/database.yml"
+
+- name: Copy foreman-master settings.yaml file
+  template:
+    src: foreman-master/config/settings.yaml
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/settings.yaml"
+
+- name: Copy foreman-master foreman-proxy settings.yml file
+  template:
+    src: foreman-master/config/foreman-proxy/settings.yml
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/foreman-proxy/settings.yml"
+
+- name: Copy foreman-master foreman-proxy settings.d dir
+  template:
+    src: "{{ item }}"
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/foreman-proxy/settings.d/{{ item | basename }}"
+  with_fileglob:
+    - "templates/foreman-master/config/foreman-proxy/settings.d/*"
+
+- name: Copy complete tasks files
+  template:
+    src: "{{ item }}"
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/{{ item | basename }}"
+  with_fileglob:
+    - "templates/foreman-master/config/*.file"

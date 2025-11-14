@@ -1,0 +1,4 @@
+---
+:enabled: https
+:dns_ttl: 86400
+:use_provider: dns_nsupdate

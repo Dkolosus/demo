@@ -1,0 +1,77 @@
+---
+
+- block:
+  - name: Create rabbitmq amqp user {{ software_user.name }}
+    community.rabbitmq.rabbitmq_user:
+      login_protocol: https
+      login_host: "{{  software_instance.fqdn }}"
+      login_port: "{{ software_instance.http_api_port }}"
+      login_user: "{{ software_admin_user }}"
+      login_password: "{{ software_admin_pswd }}"
+      force: true
+      update_password: "always"
+      user: "{{ software_user.name }}"
+      password: "{{ software_user_pswd }}"
+      permissions:
+        - vhost: "{{ software_instance.vhost }}"
+          configure_priv: .*
+          read_priv: .*
+          write_priv: .*
+      state: present
+    when: software_user.account_access_type is defined and software_user.account_access_type == 'amqp'
+    run_once: true
+
+  - name: Create rabbitmq management user {{ software_user.name }}
+    community.rabbitmq.rabbitmq_user:
+      login_protocol: https
+      login_host: "{{  software_instance.fqdn }}"
+      login_port: "{{ software_instance.http_api_port }}"
+      login_user: "{{ software_admin_user }}"
+      login_password: "{{ software_admin_pswd }}"
+      force: true
+      update_password: "always"
+      user: "{{ software_user.name }}"
+      password: "{{ software_user_pswd }}"
+      tags: "management"
+      permissions:
+        - vhost: "{{ software_instance.vhost }}"
+          configure_priv: .*
+          read_priv: .*
+          write_priv: .*
+      state: present
+    when: software_user.account_access_type is defined and software_user.account_access_type == 'management'
+    run_once: true
+  
+  when: chk_password == None
+
+- name: Put data to vault kv
+  include_tasks: kv_loop.yml
+  vars:
+    put_data:
+      '{
+      "{{ software_user_crds_cp.kv.host }}": "{{ software_instance.fqdn }}",
+      "{{ software_user_crds_cp.kv.user }}": "{{ software_user.name }}",
+      "{{ software_user_crds_cp.kv.pswd }}": "{{ software_user_pswd }}",
+      "{{ software_user_crds_cp.kv.port }}": {{ software_instance.amqp_port }},
+      "{{ software_user_crds_cp.kv.vhost }}": "{{ software_instance.vhost }}"
+      }'
+  loop_control:
+    loop_var: software_user_crds_cp
+  loop: "{{ software_user.creds_copy | flatten }}"
+  when: software_user_crds_cp.url in chk_url_list and software_user.account_access_type is defined and software_user.account_access_type == 'amqp'
+
+- name: Put data to vault kv
+  include_tasks: kv_loop.yml
+  vars:
+    put_data:
+      '{
+      "{{ software_user_crds_cp.kv.host }}": "{{ software_instance.fqdn }}",
+      "{{ software_user_crds_cp.kv.user }}": "{{ software_user.name }}",
+      "{{ software_user_crds_cp.kv.pswd }}": "{{ software_user_pswd }}",
+      "{{ software_user_crds_cp.kv.port }}": {{ software_instance.http_api_port }},
+      "{{ software_user_crds_cp.kv.vhost }}": "{{ software_instance.vhost }}"
+      }'
+  loop_control:
+    loop_var: software_user_crds_cp
+  loop: "{{ software_user.creds_copy | flatten }}"
+  when: software_user_crds_cp.url in chk_url_list and software_user.account_access_type is defined and software_user.account_access_type == 'management'

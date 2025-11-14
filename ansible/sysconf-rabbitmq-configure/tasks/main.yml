@@ -1,0 +1,9 @@
+---
+- import_tasks: environment.yml
+
+- name: Configure instance
+  include_tasks: instance_loop.yml
+  loop_control:
+    loop_var: rabbitmq_config
+  loop: "{{ rabbitmq_config_facts | flatten }}" 
+  when: rabbitmq_config.instance in instances_to_configure

@@ -1,0 +1,466 @@
+---
+- name: Copy foreman-isc-dhcp dhcpd.conf
+  template:
+    src: foreman-isc-dhcp/config/dhcpd.conf.j2
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-isc-dhcp/config/dhcpd.conf"
+    
+- name: Copy foreman-master autoinstall template
+  template:
+    src: foreman-master/config/autoinstall.yml
+    dest: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-volumes/{{ foreman_config.foreman_env.container_prefix }}-foreman-http-iso/autoinstall.yml"
+  when: foreman_config.foreman_env.autoinstall is true
+  register: template_var
+
+- name: Copy ca_done file
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/ca_done.file"
+    container_path: /etc/foreman/config/ca_done.file
+  register: ca_done_file
+
+- block:
+
+  - name: hammer download ca cert
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: hammer --fetch-ca-cert https://foreman-master.{{ foreman_config.foreman_env.domain }}
+    ignore_errors: true
+    register: down_ca
+
+  - name: install ca cert
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: install /root/.hammer/certs/foreman-master.{{ foreman_config.foreman_env.domain }}_443.pem /usr/local/share/ca-certificates/
+    ignore_errors: true
+    register: install_ca
+
+  - name: update-ca-certificates
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: update-ca-certificates
+    ignore_errors: true
+    register: upd_ca
+
+  - name: Delete lock file if failed
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: rm -f /etc/foreman/config/ca_done.file
+    when: down_ca.failed == true  or install_ca.failed == true  or upd_ca.failed == true
+
+  - name: Stop when Failed
+    fail: 
+      msg: "The execution has failed because of errors."
+    when: down_ca.failed == true  or install_ca.failed == true  or upd_ca.failed == true
+
+  when: ca_done_file.changed
+
+- name: Check default organization exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer organization list |grep 'Default Organization'"
+  register: check_def_org
+  failed_when: check_def_org.rc == 2
+  changed_when: check_def_org.rc == 0
+
+- name: delete default organization
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer organization delete --name 'Default Organization'"
+  when: check_def_org.rc == 0
+
+- name: Check default location exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer location list |grep 'Default Location'"
+  register: check_def_loc
+  failed_when: check_def_loc.rc == 2
+  changed_when: check_def_loc.rc == 0
+
+- name: delete default location
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer location delete --name 'Default Location'"
+  when: check_def_loc.rc == 0 
+
+- name: Check location exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer location list |grep {{ foreman_config.foreman_env.location }}"
+  register: check_loc
+  failed_when: check_loc.rc == 2
+  changed_when: check_loc.rc == 1
+
+- name: Create location
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer location create --name {{ foreman_config.foreman_env.location }}"
+  when: check_loc.rc == 1
+
+- name: Check organization exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer organization list |grep {{ foreman_config.foreman_env.org }}"
+  register: check_org
+  failed_when: check_org.rc == 2
+  changed_when: check_org.rc == 1
+
+- name: Create organization
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer organization create  --name {{ foreman_config.foreman_env.org }}"
+  when: check_org.rc == 1
+
+- name: Check default location exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer defaults list |grep {{ foreman_config.foreman_env.location }}"
+  register: def_check_loc
+  failed_when: def_check_loc.rc == 2
+  changed_when: def_check_loc.rc == 1
+ 
+- name: Set default location argv
+  set_fact:
+    loc_argv: hammer defaults add --param-name location 
+                --param-value {{ foreman_config.foreman_env.location }}
+  when: def_check_loc.rc == 1
+
+- name: Set default location
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    argv: "{{ loc_argv | split }}"
+  register: def_loc_add
+  when: def_check_loc.rc == 1
+
+- name: Check organization exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer defaults list |grep {{ foreman_config.foreman_env.org }}"
+  register: def_check_org
+  failed_when: def_check_org.rc == 2
+  changed_when: def_check_org.rc == 1
+
+- name: Set default organization argv
+  set_fact:
+    org_argv: hammer defaults add --param-name organization
+                --param-value {{ foreman_config.foreman_env.org }}
+  when: def_check_org.rc == 1
+
+- name: Set default organization
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    argv: "{{ org_argv | split }}"
+  register: def_org_add
+  when: def_check_org.rc == 1
+
+- name: Check template preseed_ubuntu2204_snippet exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer template list | grep  preseed_ubuntu2204_snippet"
+  register: check_t_snippet
+  failed_when: check_t_snippet.rc == 2
+  changed_when: check_t_snippet.rc == 1
+
+- block:
+
+  - name: Set Create template preseed_ubuntu2204_snippet argv
+    set_fact:
+      snipet_argv: hammer template create --name preseed_ubuntu2204_snippet
+                   --type snippet --file /etc/foreman/config/preseed_ubuntu2204_snippet
+
+  - name: Create template preseed_ubuntu2204_snippet
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ snipet_argv | split }}"
+
+  when: check_t_snippet.rc == 1
+
+- name: Check template PXEGrub2_ubuntu2204_efi exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer template list | grep  PXEGrub2_ubuntu2204_efi"
+  register: check_t_efi
+  failed_when: check_t_efi.rc == 2
+  changed_when: check_t_efi.rc == 1
+
+- block:
+
+  - name: Set Create template PXEGrub2_ubuntu2204_efi argv
+    set_fact:
+      efi_argv: hammer template create --name PXEGrub2_ubuntu2204_efi
+                   --type PXEGrub2 --file /etc/foreman/config/PXEGrub2_ubuntu2204_efi
+
+  - name: Create template PXEGrub2_ubuntu2204_efi
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ efi_argv | split }}"
+
+  when: check_t_efi.rc == 1
+
+- name: Check template PXELinux_ubuntu2204 exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer template list | grep  PXELinux_ubuntu2204"
+  register: check_t_leg
+  failed_when: check_t_leg.rc == 2
+  changed_when: check_t_leg.rc == 1
+
+- block:
+
+  - name: Set Create template PXELinux_ubuntu2204 argv
+    set_fact:
+      legacy_argv: hammer template create --name PXELinux_ubuntu2204
+                     --type PXELinux --file /etc/foreman/config/PXELinux_ubuntu2204
+
+  - name: Create template PXELinux_ubuntu2204
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ legacy_argv | split }}"
+
+  when: check_t_leg.rc == 1
+
+- name: Check puppet-environment exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer puppet-environment list | grep  production"
+  register: check_puppet
+  failed_when: check_puppet.rc == 2
+  changed_when: check_puppet.rc == 1
+
+
+- block:
+
+  - name: Set Create puppet-environment argv
+    set_fact:
+      puppet_argv: hammer puppet-environment create --name production
+                     --location-titles {{ foreman_config.foreman_env.location }}
+                     --organization-titles {{ foreman_config.foreman_env.org }}
+
+  - name: Create puppet-environment
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ puppet_argv | split }}"
+  
+  when: check_puppet.rc == 1
+
+- name: Check smart-proxy exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer proxy list | grep  foreman-master.{{ foreman_config.foreman_env.domain }}"
+  register: check_proxy
+  failed_when: check_proxy.rc == 2
+  changed_when: check_proxy.rc == 1
+
+- block:
+
+  - name: Set Create smart-proxy argv
+    set_fact:
+      proxy_argv: hammer proxy create --name foreman-master.{{ foreman_config.foreman_env.domain }}
+                    --url https://foreman-master.{{ foreman_config.foreman_env.domain }}:8443
+
+  - name: Create smart-proxy
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ proxy_argv | split }}"
+
+  when: check_proxy.rc == 1
+
+- name: Check domain exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer domain list | grep  {{ foreman_config.foreman_env.domain }}"
+  register: check_domain
+  failed_when: check_domain.rc == 2
+  changed_when: check_domain.rc == 1
+
+- name: Create domain
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: hammer domain create --name {{ foreman_config.foreman_env.domain }} --dns-id 1
+  when: check_domain.rc == 1
+
+- name: Check network exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer subnet list | grep  local"
+  register: check_subnet
+  failed_when: check_subnet.rc == 2
+  changed_when: check_subnet.rc == 1
+
+- block:
+
+  - name: Set Create network subnet argv
+    set_fact:
+      net_argv: hammer subnet create --name local --domain-ids 1 --boot-mode DHCP
+                  --network {{ foreman_config.foreman_env.dhcp_network }}
+                  --prefix {{ foreman_config.foreman_env.dhcp_network_pref }}
+                  --mask {{ foreman_config.foreman_env.dhcp_network_mask }}
+                  --from {{ foreman_config.foreman_env.dhcp_network_range.from }}
+                  --to {{ foreman_config.foreman_env.dhcp_network_range.to }}
+                  --gateway {{ foreman_config.foreman_env.host_ip }}
+                  --dns-primary {{ foreman_config.foreman_env.host_ip }}
+                  --dns-secondary 8.8.8.8 --ipam DHCP
+                  --dns foreman-master.{{ foreman_config.foreman_env.domain }} 
+                  --tftp foreman-master.{{ foreman_config.foreman_env.domain }}
+
+
+  - name: Create network subnet
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ net_argv | split }}"
+
+  when: check_subnet.rc == 1
+
+- name: Check medium exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer medium list | grep  ubuntu_22.04_local"
+  register: check_medium
+  failed_when: check_medium.rc == 2
+  changed_when: check_medium.rc == 1
+
+- block:
+
+  - name: Set Create medium argv
+    set_fact:
+      medium_argv: hammer medium create --name ubuntu_22.04_local --os-family Debian 
+                     --path http://foreman-master.{{ foreman_config.foreman_env.domain }}/pub/iso
+
+  - name: Create medium
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ medium_argv | split }}"
+
+  when: check_medium.rc == 1
+
+- name: Check OS exist
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: /bin/bash -c "hammer os list | grep  Ubuntu_22.04.5_LTS"
+  register: check_os
+  failed_when: check_os.rc == 2
+  changed_when: check_os.rc == 1
+
+- block:
+
+  - name: Set Create OS Ubuntu 22.04.5 LTS argv
+    set_fact:
+      os_argv: hammer os create --name ubuntu --major 22.04 --family Debian 
+                     --release-name jammy --description Ubuntu_22.04.5_LTS 
+                     --architectures x86_64 --media ubuntu_22.04_local --password-hash SHA512
+
+  - name: Create OS Ubuntu 22.04.5 LTS
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ os_argv | split }}"
+
+  when: check_os.rc == 1
+
+- name: cp os_config file
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/os_config.file"
+    container_path: /etc/foreman/config/os_config.file
+  register: os_config_file
+
+- block:
+
+  - name: Set Add OS to template PXEGrub2_ubuntu2204_efi argv
+    set_fact:
+      os_efi_argv: hammer template add-operatingsystem --name PXEGrub2_ubuntu2204_efi 
+                     --operatingsystem Ubuntu_22.04.5_LTS
+
+  - name: Add OS to template PXEGrub2_ubuntu2204_efi
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ os_efi_argv | split }}"
+    register: add_os_t_efi
+    ignore_errors: true
+
+  - name: Set Add OS to template PXELinux_ubuntu2204 argv
+    set_fact:
+      os_leg_argv: hammer template add-operatingsystem --name PXELinux_ubuntu2204 
+                     --operatingsystem Ubuntu_22.04.5_LTS
+
+  - name: Add OS to template PXELinux_ubuntu2204
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      argv: "{{ os_leg_argv | split }}"
+    register: add_os_t_leg
+    ignore_errors: true
+
+  - name: Add template to OS PXEGrub2_ubuntu2204_efi
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: hammer os add-provisioning-template --id 1 --provisioning-template PXEGrub2_ubuntu2204_efi
+    register: add_t_os_efi
+    ignore_errors: true
+
+  - name: Add template to OS PXELinux_ubuntu2204
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: hammer os add-provisioning-template --id 1 --provisioning-template PXELinux_ubuntu2204
+    register: add_t_os_leg
+    ignore_errors: true
+
+  - name: Delete lock file if failed
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: rm -f /etc/foreman/config/os_config.file
+    when: add_os_t_efi.failed == true  or add_os_t_leg.failed == true or add_t_os_efi.failed == true or add_t_os_leg.failed == true
+
+  - name: Stop when Failed
+    fail: 
+      msg: "The execution has failed because of errors."
+    when: add_os_t_efi.failed == true  or add_os_t_leg.failed == true or add_t_os_efi.failed == true or add_t_os_leg.failed == true
+
+  - name: Add partition table to OS 
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: hammer os add-ptable --id 1 --partition-table-id 150
+    register: add_pt_os
+    ignore_errors: true
+
+  - name: Get PXEGrub2_ubuntu2204_efi template id 
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: /bin/bash -c "hammer template info --name PXEGrub2_ubuntu2204_efi |grep Id |awk '{print $2}'"
+    register: template_grub2_id
+    ignore_errors: true
+
+  - name: Get PXELinux_ubuntu2204 template id 
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: /bin/bash -c "hammer template info --name PXELinux_ubuntu2204 |grep Id |awk '{print $2}'"
+    register: template_pxelinux_id
+    ignore_errors: true
+
+  - name: Set default Grub2-UEFI template 
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: hammer os set-default-template --id 1 --provisioning-template-id {{ template_grub2_id.stdout }}
+    register: set_def_efi
+    ignore_errors: true
+
+  - name: Set default PXE-Linux template
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: hammer os set-default-template --id 1 --provisioning-template-id {{ template_pxelinux_id.stdout }}
+    register: set_def_leg
+    ignore_errors: true
+  
+  - name: Delete lock file if failed
+    community.docker.docker_container_exec:
+      container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      command: rm -f /etc/foreman/config/os_config.file
+    when: add_pt_os.failed == true  or template_grub2_id.failed == true or template_pxelinux_id.failed == true or set_def_efi.failed == true or set_def_leg.failed == true
+
+  - name: Stop when Failed
+    fail: 
+      msg: "The execution has failed because of errors."
+    when: add_pt_os.failed == true  or template_grub2_id.failed == true or template_pxelinux_id.failed == true or set_def_efi.failed == true or set_def_leg.failed == true
+
+  when: os_config_file.changed
+
+- name: Include Create host tasks
+  include_tasks: create_host_tasks.yml
+  loop: "{{ foreman_config.foreman_install_servers }}"

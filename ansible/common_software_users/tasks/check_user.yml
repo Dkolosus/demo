@@ -1,0 +1,40 @@
+---
+
+# returns cv_vault_token
+- name: Get multitoken
+  include_tasks: roles/common_vault/tasks/v2/vault_get_multitoken.yml
+  vars:
+    cv_vault_url: "{{ check_user_crds_cp.url }}"
+
+# returns cv_response
+- name: Get path content
+  include_tasks: roles/common_vault/tasks/v2/api_get.yml
+  vars:
+    cv_url: "{{ check_user_crds_cp.url }}"
+    cv_token: "{{ cv_vault_token }}"
+    cv_delegate_to: localhost
+    cv_codes: "[200,204,404,429]"
+
+- name: Set user creds
+  set_fact:
+    chk_user: "{{ cv_response.json.data.data[check_user_crds_cp.kv.user | default('user', true)] }}"
+    chk_password: "{{ cv_response.json.data.data[check_user_crds_cp.kv.pswd | default('pswd', true)] }}"
+  when: cv_response.json.data.data[check_user_crds_cp.kv.host | default('host', true)] is defined 
+        and cv_response.json.data.data[check_user_crds_cp.kv.host | default('host', true)] == software_instance.fqdn
+        and cv_response.json.data.data[check_user_crds_cp.kv.user | default('user', true)] is defined 
+        and cv_response.json.data.data[check_user_crds_cp.kv.user | default('user', true)] == software_user.name
+        and cv_response.json.data.data[check_user_crds_cp.kv.pswd | default('pswd', true)] is defined
+        and ( software_user.force is not defined  or ( software_user.force is defined and software_user.force != true ))
+
+- name: Add url to url list
+  set_fact:
+    chk_url_list: "{{ chk_url_list + [check_user_crds_cp.url] }}"
+  when: cv_response.status == 404 or 
+        ( cv_response.json.data.data[check_user_crds_cp.kv.host | default('host', true)] is defined 
+        and cv_response.json.data.data[check_user_crds_cp.kv.host | default('host', true)] != software_instance.fqdn )
+        or (cv_response.json.data.data[check_user_crds_cp.kv.user | default('user', true)] is defined 
+        and cv_response.json.data.data[check_user_crds_cp.kv.user | default('user', true)] != software_user.name)
+        or cv_response.json.data.data[check_user_crds_cp.kv.user | default('user', true)] is not defined
+        or cv_response.json.data.data[check_user_crds_cp.kv.pswd | default('pswd', true)] is not defined
+        or cv_response.json.data.data[check_user_crds_cp.kv.host | default('host', true)] is not defined
+        or ( software_user.force is defined and software_user.force == true )     

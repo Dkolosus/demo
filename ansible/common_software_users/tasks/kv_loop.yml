@@ -1,0 +1,43 @@
+---
+
+# returns cv_vault_token
+- name: Get multitoken
+  include_tasks: roles/common_vault/tasks/v2/vault_get_multitoken.yml
+  vars:
+    cv_vault_url: "{{ software_user_crds_cp.url }}"
+
+# returns cv_response
+- name: Get path content
+  include_tasks: roles/common_vault/tasks/v2/api_get.yml
+  vars:
+    cv_url: "{{ software_user_crds_cp.url }}"
+    cv_token: "{{ cv_vault_token }}"
+    cv_delegate_to: localhost
+    cv_codes: "[200,204,404,429]"
+
+- name: Set api data vars
+  set_fact:
+    cv_payload_pre: "{{ put_data }}"
+  when: cv_response.status == 404 and cv_response.json.data.data is not defined
+
+- name: Set api data vars combine
+  set_fact:
+    cv_payload_pre: "{{ cv_response.json.data.data | combine( put_data ) }}"
+  when: cv_response.status != 404 and cv_response.json.data.data is defined
+
+- name: Set post payload
+  set_fact:
+    cv_payload:
+      '{
+      "data": {{ cv_payload_pre }}
+      }'
+  when: cv_payload_pre is defined
+  
+- name: Create/Update secret
+  include_tasks: roles/common_vault/tasks/v2/api_post.yml
+  vars:
+    cv_url: "{{ software_user_crds_cp.url }}"
+    cv_token: "{{ cv_vault_token }}"
+    cv_delegate_to: localhost
+  when: cv_payload_pre is defined
+  run_once: true

@@ -1,0 +1,54 @@
+---
+- name: Block get ansible_creds_token
+  block:
+    - name: Set vault hostname var from vault_ansible_creds_url
+      set_fact:
+        vault_hostname: "{{ rabbitmq_config.vault_ansible_creds_url | urlsplit('hostname') }}"
+
+    - name: Create list from vault_ansible_creds_url hostname
+      set_fact:
+        vault_hostname_list: "{{ vault_hostname | split('.')}}"
+
+    - name: Set dc var for vault_ansible_creds_url
+      set_fact:
+        ext_dc: "{{ vault_hostname_list[ ( vault_hostname_list | length ) - 2 ] }}"
+
+    - name: Set token_kv vars
+      set_fact:
+        cv_url: "https://vault.service.opt.kyt:8200/v1/ansible/data/vault-tokens/vault.{{ ext_dc }}.kyt"
+        cv_token: "{{ vault_token }}"
+        cv_delegate_to: localhost
+
+    - name: Get token to {{ ext_dc }} vault 
+      include_tasks: roles/common_vault/tasks/v2/api_get.yml
+
+    - name: Set deploy_vault_token var
+      set_fact:
+        ansible_creds_token: "{{ cv_response.json.data.data.token }}"
+
+- name: Block get deploy_vault_token
+  block:
+    - name: Set vault hostname var from vault_deploy_url
+      set_fact:
+        vault_hostname: "{{ rabbitmq_config.vault_deploy_url | urlsplit('hostname') }}"
+
+    - name: Create list from vault_deploy_url hostname
+      set_fact:
+        vault_hostname_list: "{{ vault_hostname | split('.')}}"
+
+    - name: Set dc var for vault_deploy_url
+      set_fact:
+        ext_dc: "{{ vault_hostname_list[ ( vault_hostname_list | length ) - 2 ] }}"
+
+    - name: Set token_kv vars
+      set_fact:
+        cv_url: "https://vault.service.opt.kyt:8200/v1/ansible/data/vault-tokens/vault.{{ ext_dc }}.kyt"
+        cv_token: "{{ vault_token }}"
+        cv_delegate_to: localhost
+
+    - name: Get token to {{ ext_dc }} vault 
+      include_tasks: roles/common_vault/tasks/v2/api_get.yml
+
+    - name: Set deploy_vault_token var
+      set_fact:
+        deploy_vault_token: "{{ cv_response.json.data.data.token }}"

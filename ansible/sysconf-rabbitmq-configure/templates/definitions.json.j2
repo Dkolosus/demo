@@ -1,0 +1,105 @@
+'{
+  "users": [
+  {
+   "name": "{{ rabbitmq_config.rabbitmq_default_user }}",
+   "password_hash": "{{ rabbitmq_hash_pswd_base64 }}",
+   "hashing_algorithm": "rabbit_password_hashing_sha256",
+   "tags": "administrator"
+  }
+  ],
+  "vhosts": [
+    {
+      "name": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "metadata": {
+          "default_queue_type": "quorum"
+            }
+    }
+  ],
+  "permissions": [
+    {
+      "user": "{{ rabbitmq_config.rabbitmq_default_user }}",
+      "vhost": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "policies": [
+    {
+      "vhost": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "name": "ttl-policy",
+      "pattern": ".*",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "message-ttl": {{ rabbitmq_config.rabbitmq_default_message_ttl }}
+      }
+    },
+    {
+      "vhost": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "name": "deal_observer_notifications_queue",
+      "pattern": "^deal_observer_notifications_queue$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "message-ttl": {{ rabbitmq_config.rabbitmq_default_message_ttl }},
+        "dead-letter-exchange":	"observer_retry_dlx"
+      }
+    },
+    {
+      "vhost": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "name": "history_retry_queue",
+      "pattern": "^history_retry_queue$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "message-ttl": 300000,
+        "dead-letter-exchange":	"history_exchange"
+      }
+    },
+    {
+      "vhost": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "name": "observer_retry_queue",
+      "pattern": "^observer_retry_queue$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "message-ttl": 300000,
+        "dead-letter-exchange":	"observer"
+      }
+    },
+    {
+      "vhost": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "name": "observer_task_queue",
+      "pattern": "^observer_task_queue$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "message-ttl": {{ rabbitmq_config.rabbitmq_default_message_ttl }},
+        "dead-letter-exchange":	"observer_task_retry_dlx"
+      }
+    },
+    {
+      "vhost": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "name": "observer_task_retry_queue",
+      "pattern": "^observer_task_retry_queue$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "message-ttl": 300000,
+        "dead-letter-exchange":	"observer_task"
+      }
+    },
+    {
+      "vhost": "{{ rabbitmq_config.rabbitmq_default_vhost }}",
+      "name": "wallet_observer_notifications_queue",
+      "pattern": "^wallet_observer_notifications_queue$",
+      "apply-to": "queues",
+      "priority": 0,
+      "definition": {
+        "message-ttl": {{ rabbitmq_config.rabbitmq_default_message_ttl }},
+        "dead-letter-exchange":	"observer_retry_dlx"
+      }
+    }
+  ]
+}'

@@ -1,0 +1,158 @@
+---
+- name: cp database_exist file
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/database_exist.file"
+    container_path: /opt/postgresql/database_exist.file
+  register: database_exist_file
+
+- name: Create database
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-postgresql"
+    command: su -l postgres -c  "psql -f /opt/postgresql/foreman.sql"
+  when: database_exist_file.changed
+
+- name: Check rndc.key
+  ansible.builtin.stat:
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/key/rndc.key"
+  register: rndc_file
+
+- name: cp bind rndc key -> host
+  ansible.builtin.command: docker cp {{ foreman_config.foreman_env.container_prefix }}-foreman-bind:/etc/bind/rndc.key \
+                             {{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/key/rndc.key
+  when: rndc_file.stat.exists == false
+
+- name: cp foreman-master bind rndc key -> foreman-master
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/key/rndc.key"
+    container_path: /etc/foreman/config/rndc.key
+
+- name: cp foreman-master preseed_ubuntu2204_snippet -> foreman-master
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/preseed_ubuntu2204_snippet"
+    container_path: /etc/foreman/config/preseed_ubuntu2204_snippet
+
+- name: cp foreman-master PXEGrub2_ubuntu2204_efi  -> foreman-master
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/PXEGrub2_ubuntu2204_efi"
+    container_path: /etc/foreman/config/PXEGrub2_ubuntu2204_efi 
+  
+- name: cp foreman-master PXELinux_ubuntu2204 -> foreman-master
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/PXELinux_ubuntu2204"
+    container_path: /etc/foreman/config/PXELinux_ubuntu2204
+
+- name: cp entrypoint.sh -> foreman-master
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/scripts/entrypoint.sh"
+    container_path: /entrypoint.sh
+    mode: 0777
+
+- name: cp chown file
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/chown.file"
+    container_path: /etc/foreman/config/chown.file
+  register: chown_file
+
+- name: chown  foreman-master database.yml
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: chown foreman:foreman /etc/foreman/database.yml
+  when: chown_file.changed
+
+- name: cp db:migrate file
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/db_migrate.file"
+    container_path: /etc/foreman/config/db_migrate.file
+  register: db_migrate_file
+
+- name: run foreman-rake db:migrate
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    argv: 
+    - "foreman-rake" 
+    - "db:migrate"
+  when: db_migrate_file.changed
+  ignore_errors: true
+  register: db_migrate
+
+- name: Delete lock file if failed
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: rm -f /etc/foreman/config/db_migrate.file
+  when: db_migrate.failed is defined and db_migrate.failed == true
+
+- name: cp db:seed file
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/db_seed.file"
+    container_path: /etc/foreman/config/db_seed.file
+  register: db_seed_file
+
+- name: run foreman-rake db:seed
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    argv: 
+    - "foreman-rake"
+    - "db:seed"
+  when: db_seed_file.changed
+  ignore_errors: true
+  register: db_seed
+
+- name: Delete lock file if failed
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: rm -f /etc/foreman/config/db_seed.file
+  when: db_seed.failed is defined and db_seed.failed == true
+
+- name: cp permissions:reset file
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/permissions_reset.file"
+    container_path: /etc/foreman/config/permissions_reset.file
+  register: permissions_reset_file
+
+- name: run foreman-rake permissions:reset
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    argv: 
+    - "foreman-rake"
+    - "permissions:reset"
+    - "password={{ foreman_config.foreman_env.admin_pass }}"
+  when: permissions_reset_file.changed
+  ignore_errors: true
+  register: permissions_reset
+
+- name: Delete lock file if failed
+  community.docker.docker_container_exec:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    command: rm -f /etc/foreman/config/permissions_reset.file
+  when: permissions_reset.failed is defined and permissions_reset.failed == true
+
+- name: cp need_restart file
+  community.docker.docker_container_copy_into:
+    container: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+    path: "{{ foreman_config.foreman_env.install_path }}/{{ foreman_config.foreman_env.container_prefix }}-foreman-master/config/need_restart.file"
+    container_path: /etc/foreman/config/need_restart.file
+  register: need_restart_file
+
+- block:
+
+  - name: Stop a foreman-master container
+    community.docker.docker_container:
+      name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      state: stopped
+
+  - name: Start a foreman-master container
+    community.docker.docker_container:
+      name: "{{ foreman_config.foreman_env.container_prefix }}-foreman-master"
+      state: started
+
+  when: need_restart_file.changed

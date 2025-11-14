@@ -1,0 +1,4 @@
+---
+- import_tasks: environment.yml
+- import_tasks: docker_container_create_tasks.yml
+- import_tasks: install_foreman_kit.yml
