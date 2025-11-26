@@ -1,0 +1,53 @@
+---
+
+foreman_config:
+  
+  foreman_env:
+    autoinstall: true # true if need to use autoinstall environment 
+    container_prefix: "uefi" 
+    host_ip: "192.168.1.10" # host server ip to start all foreman services 
+    host_iface: "br0"       # network interface to start all foreman services ( required variable to isc-dhcp )
+    install_path: "/opt/foreman" # install path on host to install foreman
+    org: "test"
+    location: "test"
+    os:
+      login: admin          # login for installed OS 
+      password: admin       # password for installed OS
+      iface: enp1s0         # server iface to autoinstall
+      hdd_1: vda            # server hdd for mdraid
+      hdd_2: vdb            # server hdd for mdraid
+    admin_pass: "admin"     # Password for foreman user admin ( user always admin )
+    root_pass: "admin12345" # Password for remote execution ( required variable to add host )
+    domain: "test.com"
+    iso_url: "http://192.168.1.10:8889/ubuntu-22.04.5-live-server-amd64.iso"
+    iso_name: "ubuntu-22.04.5-live-server-amd64.iso"
+    dhcp_network: "192.168.1.0"   # network to foreman-services and install servers 
+    dhcp_network_mask: "255.255.255.0"
+    dhcp_network_pref: "24"
+    dhcp_network_range:
+      from: "192.168.1.20"
+      to: "192.168.1.25"
+
+# Dictionary of foreman folbers ( don't change )
+  foreman_folbers: [
+    foreman-bind,
+    foreman-http-iso,
+    foreman-isc-dhcp,
+    foreman-master,
+    foreman-postgresql,
+    foreman-proxy,
+    foreman-tftpd,
+    foreman-volumes ]
+
+# Dictionary of foreman sub folbers ( don't change )
+  foreman_config_folbers: [
+    apt-sources,
+    config,
+    key,
+    scripts ]
+
+# Dictionary of  servers to install OS ( don't forget comma to separate )
+  foreman_install_servers: [
+    { hostname: "test-uefi", ip: "192.168.3.21", mac: "xx:xx:xx:xx:xx:xx" },
+    { hostname: "test-pxe", ip: "192.168.3.22", mac: "xx:xx:xx:xx:xx:xx" }
+  ]
